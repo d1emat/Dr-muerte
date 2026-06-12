@@ -1,0 +1,96 @@
+{
+ "chunkLayout": [
+  [
+   "corner_tl",
+   "t_down",
+   "corner_tr"
+  ],
+  [
+   "t_right",
+   "cross",
+   "t_left"
+  ],
+  [
+   "corner_bl",
+   "t_up",
+   "corner_br"
+  ]
+ ],
+ "objects": [
+  {
+   "frame": "sign_cross",
+   "x": 40,
+   "y": 18
+  },
+  {
+   "frame": "sign_arrow_right",
+   "x": 152,
+   "y": 18
+  },
+  {
+   "frame": "emergency_light",
+   "x": 200,
+   "y": 18
+  },
+  {
+   "frame": "sign_arrow_left",
+   "x": 248,
+   "y": 18
+  },
+  {
+   "frame": "sign_exit",
+   "x": 320,
+   "y": 18
+  },
+  {
+   "frame": "plant_tall",
+   "x": 20,
+   "y": 64
+  },
+  {
+   "frame": "cleaning_cart",
+   "x": 88,
+   "y": 56
+  },
+  {
+   "frame": "bench",
+   "x": 240,
+   "y": 64
+  },
+  {
+   "frame": "wheelchair",
+   "x": 338,
+   "y": 168
+  },
+  {
+   "frame": "vending_machine",
+   "x": 16,
+   "y": 160
+  },
+  {
+   "frame": "water_dispenser",
+   "x": 32,
+   "y": 160
+  },
+  {
+   "frame": "plant_small",
+   "x": 196,
+   "y": 196
+  },
+  {
+   "frame": "emergency_light",
+   "x": 240,
+   "y": 274
+  },
+  {
+   "frame": "plant_wilted",
+   "x": 352,
+   "y": 296
+  },
+  {
+   "frame": "bench",
+   "x": 144,
+   "y": 320
+  }
+ ]
+}

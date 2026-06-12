@@ -1,0 +1,106 @@
+{
+ "frameWidth": 16,
+ "frameHeight": 24,
+ "sheets": {
+  "doctor": "doctor.png",
+  "nurse": "nurse.png",
+  "patient": "patient.png",
+  "inspector": "inspector.png"
+ },
+ "animations": {
+  "idle_down": {
+   "frames": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "frameRate": 6,
+   "repeat": -1
+  },
+  "idle_up": {
+   "frames": [
+    4,
+    5,
+    6,
+    7
+   ],
+   "frameRate": 6,
+   "repeat": -1
+  },
+  "idle_right": {
+   "frames": [
+    8,
+    9,
+    10,
+    11
+   ],
+   "frameRate": 6,
+   "repeat": -1
+  },
+  "idle_left": {
+   "frames": [
+    12,
+    13,
+    14,
+    15
+   ],
+   "frameRate": 6,
+   "repeat": -1
+  },
+  "walk_down": {
+   "frames": [
+    16,
+    17,
+    18,
+    19
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  "walk_up": {
+   "frames": [
+    20,
+    21,
+    22,
+    23
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  "walk_right": {
+   "frames": [
+    24,
+    25,
+    26,
+    27
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  },
+  "walk_left": {
+   "frames": [
+    28,
+    29,
+    30,
+    31
+   ],
+   "frameRate": 8,
+   "repeat": -1
+  }
+ },
+ "meta": {
+  "rows": [
+   "idle_down",
+   "idle_up",
+   "idle_right",
+   "idle_left",
+   "walk_down",
+   "walk_up",
+   "walk_right",
+   "walk_left"
+  ],
+  "framesPerRow": 4,
+  "note": "load with this.load.spritesheet(name, file, {frameWidth:16, frameHeight:24}); left rows are pre-mirrored, no flipX needed."
+ }
+}
