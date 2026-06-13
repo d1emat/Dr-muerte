@@ -13,6 +13,7 @@ export default class Stealth {
   constructor(wallsGrid, observers) {
     this.walls = wallsGrid;
     this.observers = observers;
+    this.visionMul = 1;        // temporary multiplier (e.g. blackout shrinks it)
   }
 
   /** Everyone who can see world position (x, y) right now. */
@@ -25,11 +26,16 @@ export default class Stealth {
     return seen;
   }
 
+  /** True if any observer currently sees (x, y). */
+  anyoneSees(x, y) {
+    return this.witnessesAt(x, y).length > 0;
+  }
+
   canSee(npc, tx, ty) {
     const ex = npc.x, ey = npc.y - 8;          // eye height
     const dx = tx - ex, dy = ty - ey;
     const dist = Math.hypot(dx, dy);
-    if (dist > STEALTH.viewRadius) return false;
+    if (dist > STEALTH.viewRadius * this.visionMul) return false;
     if (dist > STEALTH.closeRange) {
       const [fx, fy] = FACING[npc.lastDir] || FACING.down;
       if ((dx * fx + dy * fy) / dist < FOV_COS) return false;

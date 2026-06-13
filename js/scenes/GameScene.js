@@ -7,6 +7,7 @@ import { randomizePatient } from "../data/patients.js";
 import { getRunState, addRunXp, recordKill, recordSuspicionSample,
          resetRunState } from "../systems/RunState.js";
 import { ROOM_OBJECTS } from "../systems/RoomObjects.js";
+import { pickObjective } from "../systems/Objectives.js";
 import { COMBO_HINTS } from "../data/combo_hints.js";
 import Player from "../entities/Player.js";
 import Patient from "../entities/Patient.js";
@@ -56,6 +57,12 @@ export default class GameScene extends Phaser.Scene {
     this.runState.levelStartTime = this.time.now;
     this.runUpgrades = this.runState.upgrades;
     this.runUpgrades.enterRoom();
+
+    // per-run objective modifier (changes how this shift plays)
+    this.objective = pickObjective(this.levelId);
+    this.objectiveSuspMul = this.objective.suspMul || 1;
+    this.vipPatient = null;
+
     this.cameras.main.fadeIn(450, 0x2e, 0x24, 0x38);
 
     const { wallColliders, furnitureColliders, interactables, wallsGrid,
@@ -78,6 +85,18 @@ export default class GameScene extends Phaser.Scene {
 
     this.player = new Player(this, this.level.spawn.x, this.level.spawn.y);
     this.patients = patientDefs.map((def) => new Patient(this, def));
+
+    // VIP target marker (★) for the "vip" objective
+    if (this.objective.vip && this.patients.length) {
+      this.vipPatient = Phaser.Utils.Array.GetRandom(this.patients);
+      this.vipMark = this.add.text(this.vipPatient.x, this.vipPatient.y - 40,
+        "★", { fontFamily: FONT_BODY, fontSize: "18px", color: "#ffd970" })
+        .setOrigin(0.5).setStroke("#4a3b5c", 4).setDepth(8600);
+    }
+    // full-world dark overlay used by the blackout complication
+    this.blackoutFx = this.add.rectangle(0, 0, worldW, worldH, 0x05030f, 0)
+      .setOrigin(0).setDepth(7000);
+
     this.nurses = this.level.nurses.map((n) =>
       new Nurse(this, enrichRoute(n.route), { speed: n.speed, pauseMs: 1600 }));
     this.inspectors = this.level.inspectors.map((n) =>
@@ -166,6 +185,7 @@ export default class GameScene extends Phaser.Scene {
       this.events.off("suspicion-drop", this._onSuspicionDrop);
       this.events.off("combo-discovered", this._onComboDiscovered);
       if (this.reactiveTimer) this.reactiveTimer.remove();
+      if (this.eventsTimer) this.eventsTimer.remove();
     });
 
     if (this.scene.isActive("UIScene")) {
@@ -182,11 +202,115 @@ export default class GameScene extends Phaser.Scene {
       callback: () => this.reactiveDialogue(),
     });
 
+    // random complications every ~22s (skip level 1 to ease players in)
+    if (this.levelId > 1) {
+      this.eventsTimer = this.time.addEvent({
+        delay: Phaser.Math.Between(20000, 26000), loop: true,
+        callback: () => this.triggerComplication(),
+      });
+    }
+
+    // "contrarreloj" objective: a surprise audit ends the shift
+    if (this.objective.timeLimitMs) {
+      this.time.delayedCall(Math.max(0, this.objective.timeLimitMs - 30000), () => {
+        if (!this.ended) this.game.events.emit("message",
+          "La auditoría llega en 30 segundos. Date prisa.");
+      });
+      this.time.delayedCall(this.objective.timeLimitMs, () => {
+        if (this.ended) return;
+        this.game.events.emit("message",
+          "¡Llegó la auditoría y te pilla in fraganti!");
+        this.endGame("gameover", "audit");
+      });
+    }
+
     this.time.delayedCall(600, () => {
       this.game.events.emit("message",
         `${this.level.name}: ${this.patients.length} pacientes. ` +
         `${this.level.subtitle}`);
     });
+    this.time.delayedCall(3600, () => {
+      if (!this.ended) this.game.events.emit("message",
+        `OBJETIVO — ${this.objective.name}: ${this.objective.desc}`);
+    });
+  }
+
+  alivePatients() {
+    return this.patients.filter((p) => !p.dead);
+  }
+
+  // -------------------------------------------------- complications
+  triggerComplication() {
+    if (this.ended || this.menu.isOpen) return;
+    const kinds = ["blackout"];
+    if (this.alivePatients().length) kinds.push("code_blue");
+    if (Phaser.Utils.Array.GetRandom(kinds) === "blackout") this.blackout();
+    else this.codeBlue();
+  }
+
+  blackout() {
+    if (!this.blackoutFx) return;
+    this.stealth.visionMul = 0.4;
+    this.game.music.sfx("alarm");
+    this.game.events.emit("message", "¡Se va la luz! Aprovecha la oscuridad.");
+    this.tweens.add({ targets: this.blackoutFx, alpha: 0.72, duration: 300 });
+    this.time.delayedCall(5500, () => {
+      if (this.ended) return;
+      this.stealth.visionMul = 1;
+      this.tweens.add({ targets: this.blackoutFx, alpha: 0, duration: 500 });
+      this.game.events.emit("message", "Vuelve la luz.");
+    });
+  }
+
+  codeBlue() {
+    const alive = this.alivePatients();
+    if (!alive.length) return;
+    const victim = Phaser.Utils.Array.GetRandom(alive);
+    this.game.music.sfx("alarm");
+    this.game.events.emit("message",
+      "¡CÓDIGO AZUL! El personal corre a una urgencia. Aprovecha.");
+    this.floatText(victim.x, victim.y - 40, "CÓDIGO AZUL", "#ef5d6f");
+    const movers = [...this.nurses, ...this.inspectors].filter((n) => !n.chasing);
+    for (const n of movers) {
+      n._savedRoute = n.route;
+      n.route = [[victim.x, victim.y + 18]];
+      n.wpIndex = 0;
+      n.pausedUntil = 0;
+      n.halted = false;
+    }
+    this.time.delayedCall(6500, () => {
+      if (this.ended) return;
+      for (const n of movers) {
+        if (n._savedRoute) { n.route = n._savedRoute; n.wpIndex = 0; n._savedRoute = null; }
+      }
+      this.game.events.emit("message", "La urgencia pasó. El personal vuelve a su ronda.");
+    });
+  }
+
+  concealBody(p) {
+    if (p.concealed) return;
+    p.concealed = true;
+    this.suspicion.reduce(COSTS.checkFiles, p.x, p.y);
+    this.floatText(p.x, p.y - 30, "✓ encubierto", "#6fd293");
+    this.game.events.emit("message",
+      "Certificado firmado y cuerpo tapado. Muerte natural, oficialmente.");
+    this.game.music.sfx("confirm");
+  }
+
+  checkBodies(time) {
+    for (const p of this.patients) {
+      if (!p.dead || p.concealed || p.reported) continue;
+      const seen = this.stealth.anyoneSees(p.x, p.y);
+      const tooLong = time - (p.deathAt || 0) > 15000;
+      if (seen || tooLong) {
+        p.reported = true;
+        this.suspicion.add(seen ? 18 : 10, p.x, p.y);
+        this.floatText(p.x, p.y - 34, "¡cuerpo descubierto!", "#ef5d6f");
+        this.game.events.emit("message", seen
+          ? "¡Han visto el cadáver sin tapar! Sospechas disparadas."
+          : `Encuentran a ${p.displayName} sin papeleo. Empiezan las preguntas.`);
+      }
+    }
   }
 
   handlePatientDied(p, cause) {
@@ -201,8 +325,13 @@ export default class GameScene extends Phaser.Scene {
     if (this.suspicion.value < 20) bonus += 10;
     if (p._killedByCombo) bonus += 15;
     if (p._killedByAllergy) bonus += 10;
-    addRunXp(this.game, base + bonus,
-      `${p.displayName}: ${base + bonus} XP`);
+    let xpMul = this.objective.xpMul || 1;
+    if (p === this.vipPatient) {
+      xpMul *= 3;
+      this.suspicion.add(20, p.x, p.y);     // a VIP death makes noise
+    }
+    const xp = Math.round((base + bonus) * xpMul);
+    addRunXp(this.game, xp, `${p.displayName}: ${xp} XP`);
 
     recordKill(this.game, p, {
       combo: p._killedByCombo,
@@ -224,6 +353,10 @@ export default class GameScene extends Phaser.Scene {
     const label = this.inspectors.includes(npc) ? "INSPECTOR" : "enfermera";
     this.game.events.emit("message",
       `¡El ${label} lo ha visto! (+${bonus})`);
+    if (this.objective.witnessInstant && !this.ended) {
+      this.game.events.emit("message", "Cero testigos era la regla. Se acabó.");
+      this.endGame("gameover", "caught");
+    }
   }
 
   reactiveDialogue() {
@@ -304,6 +437,13 @@ export default class GameScene extends Phaser.Scene {
         label: () => `E: atender a ${p.displayName}`,
         enabled: () => !p.dead,
         action: () => this.menu.open(p),
+      });
+      // second act of a kill: cover the body before anyone sees it
+      this.interactions.register({
+        getPos: () => ({ x: p.x, y: p.y }),
+        label: () => "E: firmar certificado y tapar",
+        enabled: () => p.dead && !p.concealed,
+        action: () => this.concealBody(p),
       });
     }
 
@@ -528,6 +668,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.suspicion.update();
+
+    if (this.vipMark && this.vipPatient) {
+      if (this.vipPatient.dead) this.vipMark.setVisible(false);
+      else this.vipMark.setPosition(this.vipPatient.x, this.vipPatient.y - 40);
+    }
+    this.checkBodies(time);
+
     if (time % 500 < delta) {
       recordSuspicionSample(this.game, this.suspicion.value);
       this.game.events.emit("minimap", {

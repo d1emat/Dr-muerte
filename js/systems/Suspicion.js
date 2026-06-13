@@ -24,6 +24,7 @@ export default class Suspicion {
    */
   add(base, x, y) {
     let total = base;
+    if (this.scene.objectiveSuspMul) total *= this.scene.objectiveSuspMul;
     const up = this.scene.runUpgrades;
     if (up) {
       const mul = up.getEffect("suspicionMul");
