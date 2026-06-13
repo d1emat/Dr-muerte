@@ -1,57 +1,60 @@
-import { TILE, WORLD_COLS, WORLD_ROWS, WORLD_W, WORLD_H } from "../config.js";
-import { ROOMS, FLOOR_OVERRIDES, BANDS, DOORS, INNER_WALL_COLS,
-         FURNITURE, DECOR } from "./blueprint.js";
+import { TILE } from "../config.js";
 
-function emptyGrid() {
-  return Array.from({ length: WORLD_ROWS }, () => Array(WORLD_COLS).fill(null));
+/**
+ * Parametric tilemap builder. A map definition contains:
+ *   cols, rows
+ *   rooms:  [{ x, y, w, h, floor: [a, b] }]          checkered floor rects
+ *   bands:  [{ row, capOnly? }]                      horizontal walls (cap + 2 faces)
+ *   vwalls: [{ col, from, to }]                      vertical wall runs (caps)
+ *   doors:  [{ cols: [c1, c2], band: row }]          gaps carved through bands
+ *   floorOverrides: [{ c, r, t }]
+ *   furniture: [{ frame, x, y, id?, type?, decor? }] world-pixel placements
+ *   decor: [{ frame, x, y }]                         wall decorations, no collision
+ */
+function emptyGrid(cols, rows) {
+  return Array.from({ length: rows }, () => Array(cols).fill(null));
 }
 
-function computeGrids() {
-  const floor = emptyGrid();
-  const walls = emptyGrid();
+const DOOR_FLOOR = ["floor_white_a", "floor_white_b"];
 
-  for (const room of ROOMS) {
+function computeGrids(def) {
+  const { cols, rows } = def;
+  const floor = emptyGrid(cols, rows);
+  const walls = emptyGrid(cols, rows);
+
+  for (const room of def.rooms) {
     for (let r = room.y; r < room.y + room.h; r++) {
       for (let c = room.x; c < room.x + room.w; c++) {
         floor[r][c] = room.floor[(r + c) % 2];
       }
     }
   }
-  for (const o of FLOOR_OVERRIDES) floor[o.r][o.c] = o.t;
+  for (const o of def.floorOverrides || []) floor[o.r][o.c] = o.t;
 
-  // horizontal bands: cap + 2 face rows (bottom band: cap only)
-  for (const band of [BANDS.top, BANDS.mid1, BANDS.mid2]) {
-    for (let c = 1; c < WORLD_COLS - 1; c++) {
-      walls[band][c] = "wall_cap_h";
-      walls[band + 1][c] = "wall_face_top";
-      walls[band + 2][c] = "wall_face_bottom";
+  for (const band of def.bands) {
+    for (let c = 1; c < cols - 1; c++) {
+      walls[band.row][c] = "wall_cap_h";
+      if (!band.capOnly) {
+        walls[band.row + 1][c] = "wall_face_top";
+        walls[band.row + 2][c] = "wall_face_bottom";
+      }
     }
   }
-  for (let c = 1; c < WORLD_COLS - 1; c++) walls[BANDS.bottom][c] = "wall_cap_h";
 
-  // outer vertical walls
-  for (let r = 1; r < WORLD_ROWS - 1; r++) {
-    walls[r][0] = "wall_cap_v";
-    walls[r][WORLD_COLS - 1] = "wall_cap_v";
+  for (const vw of def.vwalls) {
+    for (let r = vw.from; r <= vw.to; r++) walls[r][vw.col] = "wall_cap_v";
   }
+
   walls[0][0] = "wall_cap_corner_tl";
-  walls[0][WORLD_COLS - 1] = "wall_cap_corner_tr";
-  walls[WORLD_ROWS - 1][0] = "wall_cap_corner_bl";
-  walls[WORLD_ROWS - 1][WORLD_COLS - 1] = "wall_cap_corner_br";
+  walls[0][cols - 1] = "wall_cap_corner_tr";
+  walls[rows - 1][0] = "wall_cap_corner_bl";
+  walls[rows - 1][cols - 1] = "wall_cap_corner_br";
 
-  // inner vertical walls between rooms (top + bottom row of rooms)
-  for (const c of INNER_WALL_COLS) {
-    for (let r = 3; r <= 10; r++) walls[r][c] = "wall_cap_v";
-    for (let r = 21; r <= 28; r++) walls[r][c] = "wall_cap_v";
-  }
-
-  // carve door gaps through bands; add end caps on the cap row
-  for (const door of DOORS) {
-    const corridorFloor = ROOMS.find((r) => r.name === "corridor").floor;
+  for (const door of def.doors) {
     for (const c of door.cols) {
       for (let r = door.band; r < door.band + 3; r++) {
         walls[r][c] = null;
-        floor[r][c] = corridorFloor[(r + c) % 2];
+        floor[r][c] = DOOR_FLOOR[(r + c) % 2];
       }
     }
     const left = Math.min(...door.cols) - 1;
@@ -64,12 +67,12 @@ function computeGrids() {
 }
 
 /** Merge horizontal runs of solid cells into collision rectangles. */
-function buildWallColliders(scene, walls) {
+function buildWallColliders(scene, walls, cols, rows) {
   const rects = [];
-  for (let r = 0; r < WORLD_ROWS; r++) {
+  for (let r = 0; r < rows; r++) {
     let start = -1;
-    for (let c = 0; c <= WORLD_COLS; c++) {
-      const solid = c < WORLD_COLS && walls[r][c] !== null;
+    for (let c = 0; c <= cols; c++) {
+      const solid = c < cols && walls[r][c] !== null;
       if (solid && start < 0) start = c;
       if (!solid && start >= 0) {
         const w = (c - start) * TILE;
@@ -84,27 +87,29 @@ function buildWallColliders(scene, walls) {
   return rects;
 }
 
-export function buildMap(scene) {
-  const { floor, walls } = computeGrids();
+export function buildMap(scene, def) {
+  const { cols, rows } = def;
+  const worldW = cols * TILE, worldH = rows * TILE;
+  const { floor, walls } = computeGrids(def);
 
-  const rt = scene.add.renderTexture(0, 0, WORLD_W, WORLD_H)
+  const rt = scene.add.renderTexture(0, 0, worldW, worldH)
     .setOrigin(0, 0).setDepth(0);
-  for (let r = 0; r < WORLD_ROWS; r++) {
-    for (let c = 0; c < WORLD_COLS; c++) {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
       if (floor[r][c]) rt.drawFrame("tiles", floor[r][c], c * TILE, r * TILE);
       if (walls[r][c]) rt.drawFrame("tiles", walls[r][c], c * TILE, r * TILE);
     }
   }
 
-  const wallColliders = buildWallColliders(scene, walls);
+  const wallColliders = buildWallColliders(scene, walls, cols, rows);
 
-  for (const dec of DECOR) {
+  for (const dec of def.decor || []) {
     scene.add.image(dec.x, dec.y, "tiles", dec.frame).setOrigin(0).setDepth(1);
   }
 
   const furnitureColliders = [];
   const interactables = {};
-  for (const f of FURNITURE) {
+  for (const f of def.furniture || []) {
     const frame = scene.textures.getFrame("tiles", f.frame);
     const img = scene.add.image(f.x, f.y, "tiles", f.frame)
       .setOrigin(0).setDepth(f.y + frame.height);
@@ -124,5 +129,6 @@ export function buildMap(scene) {
     }
   }
 
-  return { wallColliders, furnitureColliders, interactables, wallsGrid: walls };
+  return { wallColliders, furnitureColliders, interactables,
+           wallsGrid: walls, worldW, worldH };
 }

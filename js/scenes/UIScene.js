@@ -1,126 +1,146 @@
-import { VIEW_W, VIEW_H, SUSPICION, ITEM_DATA } from "../config.js";
-
-const INK = "#4a3b5c";
-const PAPER = "#fff6ee";
+import { UI_W, UI_H, SUSPICION } from "../config.js";
+import { title, body, INK, PAPER, YELLOW, GREEN } from "../ui/theme.js";
+import { getRunState } from "../systems/RunState.js";
 
 export default class UIScene extends Phaser.Scene {
   constructor() { super("UIScene"); }
 
   create() {
-    this.suspicionValue = 0;
+    this.add.text(32, 22, "SOSPECHAS", title(13)).setStroke(INK, 6);
+    this.add.rectangle(36, 52, 260, 26, 0x7a6890).setOrigin(0);
+    this.add.rectangle(32, 48, 260, 26, 0x4a3b5c).setOrigin(0);
+    this.barFill = this.add.rectangle(36, 52, 0, 18, 0x6fd293).setOrigin(0);
 
-    // ---- suspicion bar (top-left)
-    this.add.text(8, 4, "SOSPECHAS", {
-      fontFamily: "monospace", fontSize: "8px", color: PAPER,
-    }).setStroke(INK, 2);
-    this.barBg = this.add.rectangle(8, 15, 64, 6, 0x4a3b5c).setOrigin(0);
-    this.barFill = this.add.rectangle(9, 16, 0, 4, 0x6fd293).setOrigin(0);
+    // XP bar beneath suspicion
+    this.add.text(32, 82, "XP", title(11)).setStroke(INK, 5);
+    this.add.rectangle(36, 104, 160, 14, 0x7a6890).setOrigin(0);
+    this.add.rectangle(32, 100, 160, 14, 0x4a3b5c).setOrigin(0);
+    this.xpFill = this.add.rectangle(36, 104, 0, 10, 0xb9a8e8).setOrigin(0);
+    this.xpText = this.add.text(200, 100, "0", body(20, PAPER)).setOrigin(0, 0.5)
+      .setStroke(INK, 4);
 
-    // ---- kill counter (top-right)
-    this.killText = this.add.text(VIEW_W - 8, 4, "Pacientes: 0/3", {
-      fontFamily: "monospace", fontSize: "8px", color: PAPER,
-    }).setOrigin(1, 0).setStroke(INK, 2);
+    this.killText = this.add.text(UI_W - 32, 22, "Pacientes: 0/3", title(13))
+      .setOrigin(1, 0).setStroke(INK, 6);
+    this.levelText = this.add.text(UI_W - 32, 50, "", body(24, PAPER))
+      .setOrigin(1, 0).setStroke(INK, 5);
+    this.roomText = this.add.text(UI_W - 32, 78, "", body(22, YELLOW))
+      .setOrigin(1, 0).setStroke(INK, 4);
 
-    // ---- inventory (bottom-left), 4 slots
-    this.slotRects = [];
-    this.slotIcons = [];
-    for (let i = 0; i < 4; i++) {
-      const x = 8 + i * 20;
-      const r = this.add.rectangle(x, VIEW_H - 24, 18, 18, 0xfff6ee, 0.9)
-        .setOrigin(0).setStrokeStyle(1, 0x4a3b5c);
-      this.slotRects.push(r);
-      this.slotIcons.push(null);
-      this.add.text(x + 1, VIEW_H - 24, String(i + 1), {
-        fontFamily: "monospace", fontSize: "7px", color: INK,
-      });
-    }
+    // minimap (top-right corner)
+    const mmW = 100, mmH = 70;
+    const mmX = UI_W - 32 - mmW;
+    this.add.rectangle(mmX + 3, 118 + 3, mmW, mmH, 0x7a6890, 0.6).setOrigin(0);
+    this.minimapBg = this.add.rectangle(mmX, 118, mmW, mmH, 0x4a3b5c, 0.85)
+      .setOrigin(0).setStrokeStyle(1, 0xfff6ee, 0.5);
+    this.minimapDot = this.add.rectangle(mmX + mmW / 2, 118 + mmH / 2, 5, 5, 0xffd970)
+      .setOrigin(0.5);
+    this.minimapSize = { w: mmW, h: mmH, x: mmX, y: 118 };
 
-    // ---- prompt + messages
-    this.promptText = this.add.text(VIEW_W / 2, VIEW_H - 34, "", {
-      fontFamily: "monospace", fontSize: "8px", color: "#ffd970",
-    }).setOrigin(0.5).setStroke(INK, 3);
-    this.msgText = this.add.text(VIEW_W / 2, VIEW_H - 8, "", {
-      fontFamily: "monospace", fontSize: "8px", color: PAPER,
-      align: "center", wordWrap: { width: VIEW_W - 60 },
-    }).setOrigin(0.5, 1).setStroke(INK, 3);
+    this.tutBg = this.add.rectangle(UI_W / 2, 44, 760, 56, 0x4a3b5c, 0.85)
+      .setStrokeStyle(2, 0xfff6ee, 0.6).setVisible(false);
+    this.tutText = this.add.text(UI_W / 2, 44, "", {
+      ...body(26, YELLOW), align: "center", wordWrap: { width: 720 },
+    }).setOrigin(0.5);
+
+    this.promptText = this.add.text(UI_W / 2, UI_H - 118, "", body(30, YELLOW))
+      .setOrigin(0.5).setStroke(INK, 6);
+
+    this.msgBg = this.add.rectangle(UI_W / 2, UI_H - 46, 880, 58, 0x4a3b5c, 0.88)
+      .setStrokeStyle(2, 0xfff6ee, 0.6).setVisible(false);
+    this.msgText = this.add.text(UI_W / 2, UI_H - 46, "", {
+      ...body(28, PAPER), align: "center", wordWrap: { width: 840 },
+    }).setOrigin(0.5);
     this.msgTimer = null;
 
-    // ---- end-of-game overlay
-    this.overlay = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x4a3b5c, 0.88)
-      .setOrigin(0).setVisible(false);
-    this.overlayTitle = this.add.text(VIEW_W / 2, VIEW_H / 2 - 16, "", {
-      fontFamily: "monospace", fontSize: "14px", color: PAPER,
-    }).setOrigin(0.5).setVisible(false);
-    this.overlayBody = this.add.text(VIEW_W / 2, VIEW_H / 2 + 8, "", {
-      fontFamily: "monospace", fontSize: "8px", color: PAPER,
-      align: "center", wordWrap: { width: VIEW_W - 40 },
-    }).setOrigin(0.5).setVisible(false);
-
-    // ---- events from GameScene
     const ev = this.game.events;
-    ev.on("suspicion", this.onSuspicion, this);
-    ev.on("inventory", this.onInventory, this);
-    ev.on("prompt", this.onPrompt, this);
-    ev.on("message", this.onMessage, this);
-    ev.on("kills", this.onKills, this);
-    ev.on("victory", () => this.showEnd(
-      "VICTORIA",
-      "El hospital tiene la tasa de mortalidad más alta del país.\nMisión cumplida.\n\n[R] para otro turno"));
-    ev.on("gameover", () => this.showEnd(
-      "TE HAN PILLADO",
-      "Tu carrera como médico ha terminado.\nY también la otra.\n\n[R] para reintentar"));
-    ev.on("ui:reset", this.reset, this);
-
-    this.input.keyboard.on("keydown-R", () => {
-      this.scene.get("GameScene").scene.restart();
-    });
+    this._handlers = {
+      suspicion: (v) => this.onSuspicion(v),
+      xp: (v) => this.onXp(v),
+      "xp-gain": (d) => this.onXpGain(d),
+      prompt: (l) => this.onPrompt(l),
+      message: (t) => this.onMessage(t),
+      kills: (n, t) => this.onKills(n, t),
+      tutorial: (t) => this.onTutorial(t),
+      "level-info": (i) => this.onLevelInfo(i),
+      minimap: (d) => this.onMinimap(d),
+      "ui:reset": () => this.reset(),
+    };
+    for (const [e, fn] of Object.entries(this._handlers)) {
+      ev.on(e, fn);
+    }
 
     this.events.once("shutdown", () => {
-      ev.off("suspicion", this.onSuspicion, this);
-      ev.off("inventory", this.onInventory, this);
-      ev.off("prompt", this.onPrompt, this);
-      ev.off("message", this.onMessage, this);
-      ev.off("kills", this.onKills, this);
-      ev.removeListener("victory");
-      ev.removeListener("gameover");
-      ev.off("ui:reset", this.reset, this);
+      for (const [e, fn] of Object.entries(this._handlers)) {
+        ev.off(e, fn);
+      }
     });
+
+    this.reset();
+    this.game.events.emit("ui:ready");
   }
 
   reset() {
     this.onSuspicion(0);
-    this.onInventory([null, null, null, null], 0);
+    this.onXp(getRunState(this.game).xp);
     this.onKills(0, 3);
     this.onPrompt(null);
+    this.onTutorial(null);
+    this.levelText.setText("");
+    this.roomText.setText("");
     this.msgText.setText("");
-    this.overlay.setVisible(false);
-    this.overlayTitle.setVisible(false);
-    this.overlayBody.setVisible(false);
+    this.msgBg.setVisible(false);
+  }
+
+  onLevelInfo({ id, name, floor, room }) {
+    this.levelText.setText(`Nivel ${id} · ${name}`);
+    const parts = [];
+    if (floor) parts.push(`Planta ${floor}`);
+    if (room) parts.push(room);
+    this.roomText.setText(parts.join(" · "));
+  }
+
+  onMinimap({ playerX, playerY, worldW, worldH }) {
+    const { w, h, x, y } = this.minimapSize;
+    const px = x + (playerX / worldW) * w;
+    const py = y + (playerY / worldH) * h;
+    this.minimapDot.setPosition(px, py);
+  }
+
+  onXp(v) {
+    const pct = Math.min(1, v / 100);
+    this.xpFill.width = Math.round(152 * pct);
+    this.xpText.setText(String(v));
+  }
+
+  onXpGain({ amount }) {
+    const t = this.add.text(200, 88, `+${amount}`, body(22, GREEN))
+      .setStroke(INK, 4);
+    this.tweens.add({
+      targets: t, y: 70, alpha: 0, duration: 900,
+      onComplete: () => t.destroy(),
+    });
+  }
+
+  onTutorial(text) {
+    this.tutText.setText(text || "");
+    this.tutBg.setVisible(!!text);
   }
 
   onSuspicion(v) {
-    this.suspicionValue = v;
     const pct = v / SUSPICION.max;
-    this.barFill.width = Math.round(62 * pct);
+    this.barFill.width = Math.round(252 * pct);
     this.barFill.fillColor =
       pct < 0.5 ? 0x6fd293 : pct < 0.8 ? 0xffd970 : 0xef5d6f;
-  }
-
-  onInventory(slots, selected) {
-    slots.forEach((itemId, i) => {
-      if (this.slotIcons[i]) {
-        this.slotIcons[i].destroy();
-        this.slotIcons[i] = null;
-      }
-      if (itemId) {
-        this.slotIcons[i] = this.add.image(
-          this.slotRects[i].x + 9, this.slotRects[i].y + 9,
-          "items", ITEM_DATA[itemId].frame);
-      }
-      this.slotRects[i].setStrokeStyle(
-        i === selected ? 2 : 1,
-        i === selected ? 0xffd970 : 0x4a3b5c);
-    });
+    if (pct >= 0.7 && !this.barPulse) {
+      this.barPulse = this.tweens.add({
+        targets: this.barFill, alpha: 0.35, duration: 280,
+        yoyo: true, repeat: -1,
+      });
+    } else if (pct < 0.7 && this.barPulse) {
+      this.barPulse.stop();
+      this.barPulse = null;
+      this.barFill.setAlpha(1);
+    }
   }
 
   onPrompt(label) {
@@ -129,17 +149,27 @@ export default class UIScene extends Phaser.Scene {
 
   onMessage(text) {
     this.msgText.setText(text);
+    this.msgBg.setVisible(true);
+    this.msgBg.setAlpha(0);
+    this.msgText.setAlpha(0);
+    this.tweens.add({ targets: [this.msgBg, this.msgText], alpha: 1,
+                      duration: 150 });
     if (this.msgTimer) this.msgTimer.remove();
-    this.msgTimer = this.time.delayedCall(3500, () => this.msgText.setText(""));
+    this.msgTimer = this.time.delayedCall(3500, () => {
+      this.tweens.add({
+        targets: [this.msgBg, this.msgText], alpha: 0, duration: 300,
+        onComplete: () => {
+          this.msgText.setText("");
+          this.msgBg.setVisible(false);
+          this.msgText.setAlpha(1);
+          this.msgBg.setAlpha(1);
+        },
+      });
+    });
   }
 
   onKills(n, total) {
+    this.killText.setVisible(total > 0);
     this.killText.setText(`Pacientes: ${n}/${total}`);
-  }
-
-  showEnd(title, body) {
-    this.overlay.setVisible(true);
-    this.overlayTitle.setText(title).setVisible(true);
-    this.overlayBody.setText(body).setVisible(true);
   }
 }

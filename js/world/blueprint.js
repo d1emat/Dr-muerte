@@ -41,7 +41,7 @@ export const FURNITURE = [
   { frame: "plant_tall", x: 16, y: 48 },
   { frame: "vending_machine", x: 256, y: 48 },
   { frame: "water_dispenser", x: 272, y: 48 },
-  { frame: "reception_desk", x: 96, y: 80 },
+  { frame: "reception_desk", x: 96, y: 80, id: "reception_files", type: "files" },
   { frame: "computer", x: 102, y: 74, decor: true },
   { frame: "chair_down", x: 208, y: 120 },
   { frame: "chair_down", x: 232, y: 120 },
@@ -125,13 +125,36 @@ export const DECOR = [
   { frame: "sign_cross", x: 840, y: 196 },
 ];
 
-export const PLAYER_SPAWN = { x: 100, y: 264 };
+// tutorial starts in reception, next to Doña Pura
+export const PLAYER_SPAWN = { x: 170, y: 108 };
 
 export const PATIENTS = [
-  { name: "Don Ernesto (74)", x: 430, y: 110, route: [[410, 110], [450, 110]] },
-  { name: "Doña Pura (89)",   x: 232, y: 152, route: [[212, 152], [268, 152]] },
-  { name: "Andrés (19)",      x: 724, y: 432, route: [[704, 432], [744, 432]] },
+  { name: "Don Ernesto (74)", x: 430, y: 110,
+    route: [[410, 110], [450, 110]],
+    conditions: ["weak_heart", "fever"] },
+  { name: "Doña Pura (89)",   x: 232, y: 152,
+    route: [[212, 152], [268, 152]],
+    conditions: ["low_blood_pressure", "infection"] },
+  { name: "Andrés (19)",      x: 724, y: 432,
+    route: [[704, 432], [744, 432]],
+    conditions: ["diabetes"] },
 ];
+
+// full map definition for the parametric MapBuilder
+export const HOSPITAL = {
+  cols: 60, rows: 30,
+  rooms: ROOMS,
+  bands: [{ row: 0 }, { row: 11 }, { row: 18 }, { row: 29, capOnly: true }],
+  vwalls: [
+    { col: 0, from: 1, to: 28 }, { col: 59, from: 1, to: 28 },
+    { col: 19, from: 3, to: 10 }, { col: 39, from: 3, to: 10 },
+    { col: 19, from: 21, to: 28 }, { col: 39, from: 21, to: 28 },
+  ],
+  doors: DOORS,
+  floorOverrides: FLOOR_OVERRIDES.map((o) => ({ c: o.c, r: o.r, t: o.t })),
+  furniture: FURNITURE,
+  decor: DECOR,
+};
 
 export const NURSE_ROUTE = [[80, 268], [880, 268]];
 
@@ -140,6 +163,3 @@ export const INSPECTOR_ROUTE = [
   [464, 124], [464, 268], [784, 268], [784, 308],
   [784, 268], [900, 268],
 ];
-
-// what the medicine cabinets hand out, in order
-export const CABINET_LOOT = ["poison_bottle", "electric_cable", "syringe"];

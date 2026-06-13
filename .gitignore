@@ -1,0 +1,17 @@
+# build artifacts
+build/
+*.zip
+
+# dev-only generated previews (the game uses js/data/levels.js, not the PNGs)
+assets/levels/
+assets/tutorial_check_x3.png
+assets/world_check_x2.png
+
+# stray downloads / unused 3D model (game uses the 2D tileset)
+Music/okmusi-setup.exe
+Music/descarga.html
+assets/mapa/
+
+# misc
+node_modules/
+.DS_Store

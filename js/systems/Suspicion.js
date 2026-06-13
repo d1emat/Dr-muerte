@@ -24,6 +24,17 @@ export default class Suspicion {
    */
   add(base, x, y) {
     let total = base;
+    const up = this.scene.runUpgrades;
+    if (up) {
+      const mul = up.getEffect("suspicionMul");
+      if (mul) total *= mul;
+      if (up.getEffect("freeFirstAction") && !up.freeActionUsed) {
+        up.freeActionUsed = true;
+        total = 0;
+      }
+      const acc = up.getEffect("accidentalMul");
+      if (acc) total *= acc;
+    }
     for (const w of this.stealth.witnessesAt(x, y)) {
       total += w.bonus;
       this.scene.events.emit("witnessed", { npc: w.npc, bonus: w.bonus, x, y });
@@ -38,11 +49,29 @@ export default class Suspicion {
     }
   }
 
+  /** Helpful deed at (x, y): lower suspicion, with feedback. */
+  reduce(amount, x, y) {
+    if (this.done) return;
+    const before = this.value;
+    this.value = Math.max(0, this.value - amount);
+    const delta = before - this.value;
+    if (delta > 0) {
+      this.scene.events.emit("suspicion-drop", { x, y, amount: delta });
+    }
+    this.emit();
+  }
+
   update() {
     if (this.done || this.value <= 0) return;
     if (this.scene.time.now - this.lastGain > SUSPICION.decayDelayMs) {
       const dt = this.scene.game.loop.delta / 1000;
-      this.value = Math.max(0, this.value - SUSPICION.decayPerSec * dt);
+      let rate = SUSPICION.decayPerSec;
+      const up = this.scene.runUpgrades;
+      if (up) {
+        const mul = up.getEffect("decayMul");
+        if (mul) rate *= mul;
+      }
+      this.value = Math.max(0, this.value - rate * dt);
       this.emit();
     }
   }

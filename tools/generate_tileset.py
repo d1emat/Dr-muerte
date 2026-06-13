@@ -82,62 +82,54 @@ def ell(x0, y0, x1, y1, fill=None, line=None):
 
 
 # ================================================================ FLOORS
+# Clean vinyl-tile look: base fill, soft seam on bottom/right, a 1px
+# top-left sheen highlight. Seams are subtle so rooms read as polished
+# tiling, never as noise.
+def _floor(x, y, base, seam, sheen=None):
+    rect(x, y, T, T, base)
+    hline(x, y + 15, 16, seam)
+    vline(x + 15, y, 16, seam)
+    hline(x, y, 15, sheen if sheen else base)      # top edge highlight
+    vline(x, y, 15, sheen if sheen else base)      # left edge highlight
+
+
 def floor_white_a(x, y):
-    rect(x, y, T, T, WHITE)
-    hline(x, y + 15, 16, CREAM)
-    vline(x + 15, y, 16, CREAM)
+    _floor(x, y, WHITE, CREAM)
 
 
 def floor_white_b(x, y):
-    rect(x, y, T, T, CREAM)
-    hline(x, y + 15, 16, CREAM2)
-    vline(x + 15, y, 16, CREAM2)
+    _floor(x, y, CREAM, CREAM2, WHITE)
     px(x + 4, y + 4, WHITE)  # waxed-floor sparkle
 
 
 def floor_blue_a(x, y):
-    rect(x, y, T, T, BLUE)
-    hline(x, y + 15, 16, BLUE_S)
-    vline(x + 15, y, 16, BLUE_S)
-    px(x + 3, y + 3, WHITE)
+    _floor(x, y, BLUE, BLUE_S, WHITE)
 
 
 def floor_blue_b(x, y):
-    rect(x, y, T, T, WHITE)
-    hline(x, y + 15, 16, BLUE)
-    vline(x + 15, y, 16, BLUE)
+    _floor(x, y, WHITE, BLUE)
 
 
 def floor_er_a(x, y):
-    rect(x, y, T, T, CREAM)
-    hline(x, y + 15, 16, CREAM2)
-    vline(x + 15, y, 16, CREAM2)
-    # single hazard corner mark
-    hline(x + 1, y + 1, 4, RED)
-    vline(x + 1, y + 1, 4, RED)
+    # clean clinical tile (warm white); the red cross lives in floor_er_b
+    _floor(x, y, WHITE, CREAM)
 
 
 def floor_er_b(x, y):
-    rect(x, y, T, T, CREAM)
-    hline(x, y + 15, 16, CREAM2)
-    vline(x + 15, y, 16, CREAM2)
-    # small red cross, center
-    rect(x + 7, y + 5, 2, 6, RED)
-    rect(x + 5, y + 7, 6, 2, RED)
+    # emblem tile: clean base + one tidy red cross, used sparingly as a decal
+    _floor(x, y, WHITE, CREAM)
+    rect(x + 7, y + 4, 2, 8, RED)
+    rect(x + 4, y + 7, 8, 2, RED)
+    px(x + 7, y + 4, PINK)                          # soft top highlight
+    px(x + 8, y + 4, PINK)
 
 
 def floor_lab_a(x, y):
-    rect(x, y, T, T, MINT)
-    hline(x, y + 15, 16, MINT_S)
-    vline(x + 15, y, 16, MINT_S)
-    px(x + 7, y + 7, MINT_S)
+    _floor(x, y, MINT, MINT_S, WHITE)
 
 
 def floor_lab_b(x, y):
-    rect(x, y, T, T, WHITE)
-    hline(x, y + 15, 16, MINT)
-    vline(x + 15, y, 16, MINT)
-    px(x + 4, y + 4, MINT)
+    _floor(x, y, WHITE, MINT)
 
 
 # ================================================================ WALLS

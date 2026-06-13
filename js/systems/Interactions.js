@@ -16,7 +16,24 @@ export default class Interactions {
     this.entries.push(entry);
   }
 
+  /** Forget the current target so the prompt re-emits next frame. */
+  clearPrompt() {
+    this.current = null;
+  }
+
+  /** Block interactions until the given scene time (action cooldown). */
+  setLock(until) {
+    this.lockedUntil = Math.max(this.lockedUntil || 0, until);
+  }
+
   update(eKey) {
+    if (this.scene.time.now < (this.lockedUntil || 0)) {
+      if (this.current) {
+        this.current = null;
+        this.scene.game.events.emit("prompt", null);
+      }
+      return;
+    }
     let best = null;
     let bestDist = INTERACT_RADIUS;
     for (const e of this.entries) {
