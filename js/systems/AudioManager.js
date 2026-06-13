@@ -46,10 +46,13 @@ export default class AudioManager {
    * track cleanly so the music actually plays.
    */
   installUnlock() {
-    const resume = () => this.resumePlayback();
-    this.sound.once("unlocked", resume);
-    this.game.input.once("pointerdown", resume);
-    if (this.game.input.keyboard) this.game.input.keyboard.once("keydown", resume);
+    // Phaser's SoundManager emits 'unlocked' on the first user gesture once
+    // the audio context is allowed to start. The per-scene fallback in
+    // bindKeys() (scene.input) covers the rest. Note: game.input (the global
+    // InputManager) is NOT an event emitter for pointer/keys, so don't use it.
+    if (this.sound.locked) {
+      this.sound.once("unlocked", () => this.resumePlayback());
+    }
   }
 
   resumePlayback() {
@@ -304,6 +307,12 @@ export default class AudioManager {
   }
 
   bindKeys(scene) {
+    // first interaction in any scene resumes the audio context + (re)starts
+    // the wanted track, so the music actually plays despite autoplay policy.
+    scene.input.once("pointerdown", () => this.resumePlayback());
+    if (scene.input.keyboard) {
+      scene.input.keyboard.once("keydown", () => this.resumePlayback());
+    }
     const msg = (text) => scene.game.events.emit("message", text);
     scene.input.keyboard.on("keydown-M", () => {
       msg(this.toggleMute() ? "Música: silenciada" : "Música: activada");
