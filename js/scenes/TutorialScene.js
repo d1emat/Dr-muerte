@@ -29,7 +29,7 @@ export default class TutorialScene extends Phaser.Scene {
   create() {
     this.finished = false;
     this.flags = { marker: false, greeted: false, treatedAt: 0, wrongAt: 0,
-                   dropAt: 0, witnessAt: 0 };
+                   dropAt: 0, witnessAt: 0, repaired: false };
     this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     // ---------------- world
@@ -173,8 +173,15 @@ export default class TutorialScene extends Phaser.Scene {
       { text: "¡Avería! Repárala (E): el doctor servicial baja sospechas. Nadie " +
         "duda del que ayuda.",
         guide: () => ({ x: this.monitorRef.x, y: this.monitorRef.y }),
-        enter: () => this.maintenance.breakNow("tut_monitor"),
-        done: () => this.flags.dropAt > this.stepStart },
+        enter: () => {
+          this.flags.repaired = false;
+          this.maintenance.breakNow("tut_monitor");
+          if (this.suspicion.value < 15) {        // give it something to lower
+            this.suspicion.value = 20;
+            this.suspicion.emit();
+          }
+        },
+        done: () => this.flags.repaired },
       { text: "Ese CONO amarillo es lo que ve la enfermera. Si te pilla, se " +
         "pone rojo. Apréndetelo bien.", ms: 4600 },
       { text: "Haz algo turbio DELANTE de ella para que te vea (+sospecha). " +
@@ -229,7 +236,10 @@ export default class TutorialScene extends Phaser.Scene {
       getPos: () => ({ x: monitor.x, y: monitor.y }),
       label: "E: reparar la máquina averiada",
       enabled: () => this.maintenance.isBroken(monitor.id),
-      action: () => this.maintenance.repair(monitor),
+      action: () => {
+        this.maintenance.repair(monitor);
+        this.flags.repaired = true;
+      },
     });
   }
 
