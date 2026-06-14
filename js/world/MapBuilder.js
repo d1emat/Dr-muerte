@@ -107,10 +107,18 @@ export function buildMap(scene, def) {
     scene.add.image(dec.x, dec.y, "tiles", dec.frame).setOrigin(0).setDepth(1);
   }
 
+  // soft contact shadows so furniture sits on the floor instead of floating
+  const furnitureShadows = scene.add.graphics().setDepth(0.5);
+  furnitureShadows.fillStyle(0x2e2438, 0.16);
+
   const furnitureColliders = [];
   const interactables = {};
   for (const f of def.furniture || []) {
     const frame = scene.textures.getFrame("tiles", f.frame);
+    if (!f.decor) {
+      furnitureShadows.fillEllipse(f.x + frame.width / 2,
+        f.y + frame.height - 2, frame.width * 0.72, 6);
+    }
     const img = scene.add.image(f.x, f.y, "tiles", f.frame)
       .setOrigin(0).setDepth(f.y + frame.height);
     if (!f.decor) {
