@@ -13,6 +13,7 @@ import Interactions from "../systems/Interactions.js";
 import Treatment from "../systems/Treatment.js";
 import Maintenance from "../systems/Maintenance.js";
 import TreatmentMenu from "../ui/TreatmentMenu.js";
+import { recommendLethalMed } from "../data/medical.js";
 
 export function tutorialDone() {
   try { return localStorage.getItem("ft_tutorial_done") === "1"; }
@@ -125,11 +126,16 @@ export default class TutorialScene extends Phaser.Scene {
     this.events.on("patient-died", () => this.revivePatient(true));
 
     // ---------------- guides
+    // bobbing arrow that sits over the target once you're next to it
     this.arrow = this.add.image(0, 0, "guide_arrow")
       .setDepth(9500).setVisible(false);
     this.arrowBob = { v: 0 };
     this.tweens.add({ targets: this.arrowBob, v: 4, duration: 380,
                       yoyo: true, repeat: -1 });
+    // directional arrow near the player that points the way when the goal is far
+    this.dirArrow = this.add.image(0, 0, "guide_arrow")
+      .setDepth(9500).setScale(1.6).setVisible(false);
+    // pulsing ring on the floor marking where to go
     this.ring = this.add.image(TUT_MARKER.x, TUT_MARKER.y, "guide_ring")
       .setDepth(2).setVisible(false);
     this.tweens.add({ targets: this.ring, scale: 1.25, alpha: 0.5,
@@ -147,34 +153,36 @@ export default class TutorialScene extends Phaser.Scene {
     const playerNear = (x, y, d) => () =>
       Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y) < d;
     return [
-      { text: "Bienvenido al área de prácticas. Los pacientes son maniquíes… " +
-        "en el turno real, no tanto.", ms: 3400 },
-      { text: "Muévete con WASD hasta la marca amarilla. Estira esos huesos. " +
-        "Metafóricamente.",
-        guide: TUT_MARKER, ring: true,
+      { text: "Eres la MUERTE disfrazada de médico. Tu trabajo: 'tratar' " +
+        "pacientes sin levantar sospechas. Esto es la zona de prácticas.",
+        ms: 4600 },
+      { text: "MOVERTE — usa las teclas W A S D. Sigue la flecha hasta el " +
+        "círculo amarillo del suelo.",
+        guide: TUT_MARKER,
         done: playerNear(TUT_MARKER.x, TUT_MARKER.y, 16) },
-      { text: "Saluda a la enfermera (E). Una sonrisa abre puertas… y baja " +
-        "sospechas.",
+      { text: "INTERACTUAR — ponte al lado de la enfermera y pulsa E para " +
+        "saludar. Ser amable BAJA tus sospechas.",
         guide: () => this.nurse,
         done: () => this.flags.greeted },
-      { text: "Acércate al paciente (E) → DIAGNÓSTICO. Saber qué tiene es saber " +
-        "cómo 'ayudarle'.",
+      { text: "Ahora ve al paciente y pulsa E. En el menú elige primero " +
+        "DIAGNÓSTICO: te dirá qué enfermedad tiene.",
         guide: () => this.patient,
         done: () => this.patient.diagnosed },
-      { text: "Ahora trátalo: categoría → medicina → DOSIS. La dosis alta cura " +
-        "más… o lo contrario.",
+      { text: "Ya diagnosticado, cada fármaco muestra qué le haría:  " +
+        "✚ cura (lo SALVA) · ✗/☠ daña (lo MATA) · ⚠ = cuánta sospecha levanta.",
+        ms: 6000 },
+      { text: "MÁTALO con disimulo: vuelve al paciente (E) y sigue la flecha ▶ " +
+        "del menú hasta el fármaco que conviene. Categoría → medicina → dosis.",
         guide: () => this.patient,
-        done: () => this.flags.treatedAt > this.stepStart },
-      { text: "Prueba a posta una medicina que NO le toca. Mira su salud caer. " +
-        "Es de mentira, tranquilo.",
-        guide: () => this.patient,
+        enter: () => this.menu.setHint(recommendLethalMed(this.patient)),
         done: () => this.flags.wrongAt > this.stepStart },
-      { text: "Cada chapuza baja su salud y SUBE tu sospecha (barra de arriba). " +
-        "Ese es el arte.", ms: 4200 },
-      { text: "Mezclar fármacos puede ser letal. Cada combinación que descubras " +
-        "se anota sola en tu cuaderno (J).", ms: 4400 },
-      { text: "¡Avería! Repárala (E): el doctor servicial baja sospechas. Nadie " +
-        "duda del que ayuda.",
+      { text: "Vigila la barra de SOSPECHAS (arriba a la izquierda). Si se " +
+        "llena del todo, te descubren y se acaba el turno. Mantenla baja.",
+        ms: 5000 },
+      { text: "Mezclar dos fármacos puede ser MORTAL. Cada combinación letal " +
+        "que descubras se anota sola en tu cuaderno (tecla J).", ms: 5000 },
+      { text: "¡AVERÍA! Acércate a la máquina que parpadea y pulsa E para " +
+        "repararla. Ayudar baja sospechas: nadie duda del médico servicial.",
         guide: () => ({ x: this.monitorRef.x, y: this.monitorRef.y }),
         enter: () => {
           this.flags.repaired = false;
@@ -185,10 +193,11 @@ export default class TutorialScene extends Phaser.Scene {
           }
         },
         done: () => this.flags.repaired },
-      { text: "Ese CONO amarillo es lo que ve la enfermera. Si te pilla, se " +
-        "pone rojo. Apréndetelo bien.", ms: 4600 },
-      { text: "Haz algo turbio DELANTE de ella para que te vea (+sospecha). " +
-        "Las paredes la ciegan: úsalas.",
+      { text: "El CONO amarillo es lo que VE la enfermera. Si te pilla en algo " +
+        "turbio se pone ROJO. Las PAREDES la ciegan: escóndete tras ellas.",
+        ms: 5600 },
+      { text: "Pruébalo: 'trata' mal al paciente DELANTE de la enfermera para " +
+        "que te vea. Fíjate cómo sube la sospecha.",
         guide: () => this.patient,
         enter: () => {
           this.nurse.route = TUT_NURSE_WATCH_ROUTE.slice();
@@ -196,12 +205,11 @@ export default class TutorialScene extends Phaser.Scene {
           this.nurse.pausedUntil = 0;
           this.nurse.halted = false;
           this._watchStep = true;
+          this.menu.setHint(recommendLethalMed(this.patient));
         },
         done: () => this.flags.witnessAt > this.stepStart },
-      { text: "En el turno real, tras 'tratar' a alguien, TAPA el cuerpo antes " +
-        "de que lo vean. Aquí no hace falta.", ms: 4600 },
-      { text: "Eso es todo. Tres pacientes por turno, que parezca natural, y la " +
-        "Muerte estará orgullosa. Suerte, doctor.", ms: 4600 },
+      { text: "Eso es todo. Cada turno: elimina a 3 pacientes, que parezca " +
+        "natural y con la sospecha bajo control. Suerte, doctor.", ms: 5200 },
     ];
   }
 
@@ -211,7 +219,6 @@ export default class TutorialScene extends Phaser.Scene {
     const s = this.steps[this.stepIdx];
     if (!s) { this.finish(false); return; }
     if (s.enter) s.enter();
-    this.ring.setVisible(!!s.ring);
     this.game.events.emit("tutorial",
       `${this.stepIdx + 1}/${this.steps.length} · ${s.text}  [T salta]`);
     if (this.stepIdx > 0) this.game.music.sfx("tick");
@@ -316,6 +323,7 @@ export default class TutorialScene extends Phaser.Scene {
     if (this.finished) return;
     this.finished = true;
     markTutorialDone();
+    this.menu.clearHint();
     this.game.events.emit("tutorial", null);
     if (this.menu.built) this.menu.container.destroy();
     this.game.music.sfx("confirm");
@@ -350,14 +358,32 @@ export default class TutorialScene extends Phaser.Scene {
     }
     this.suspicion.update();
 
-    // guide arrow follows the current step's target (with a bob)
+    // guidance: ground ring at the goal + a pointer that tells you where to go
     const s = this.steps[this.stepIdx];
-    if (s && s.guide) {
-      const g = typeof s.guide === "function" ? s.guide() : s.guide;
-      this.arrow.setVisible(true);
-      this.arrow.setPosition(g.x, g.y - 26 - this.arrowBob.v);
+    const g = s && s.guide
+      ? (typeof s.guide === "function" ? s.guide() : s.guide) : null;
+    if (g && !this.menu.isOpen) {
+      const dist = Phaser.Math.Distance.Between(
+        this.player.x, this.player.y, g.x, g.y);
+      this.ring.setVisible(true).setPosition(g.x, g.y);
+      if (dist > 30) {
+        // goal is far: arrow orbits the player, pointing the way to walk
+        const ang = Math.atan2(g.y - this.player.y, g.x - this.player.x);
+        this.dirArrow.setVisible(true)
+          .setPosition(this.player.x + Math.cos(ang) * 22,
+                       this.player.y + Math.sin(ang) * 22)
+          .setRotation(ang - Math.PI / 2);   // texture points down by default
+        this.arrow.setVisible(false);
+      } else {
+        // you've arrived: bobbing arrow hovers over the target
+        this.dirArrow.setVisible(false);
+        this.arrow.setVisible(true).setRotation(0)
+          .setPosition(g.x, g.y - 26 - this.arrowBob.v);
+      }
     } else {
       this.arrow.setVisible(false);
+      this.dirArrow.setVisible(false);
+      this.ring.setVisible(false);
     }
 
     // checkpoint progression

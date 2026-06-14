@@ -410,6 +410,7 @@ export default class GameScene extends Phaser.Scene {
     }
     const xp = Math.round((base + bonus) * xpMul);
     addRunXp(this.game, xp, `${p.displayName}: ${xp} XP`);
+    if (xp > 0) this.floatText(p.x, p.y - 52, `+${xp} XP`, "#6fd293");
 
     recordKill(this.game, p, {
       combo: p._killedByCombo,
@@ -611,6 +612,7 @@ export default class GameScene extends Phaser.Scene {
     const worldH = this.level.map.rows * TILE;
     this.game.events.emit("kills", this.killCount, this.patients.length);
     this.game.events.emit("suspicion", this.suspicion.value);
+    this.game.events.emit("xp", this.runState.xp);
     this.game.events.emit("level-info", {
       id: this.levelId, name: this.level.name,
       floor: this.currentFloor,

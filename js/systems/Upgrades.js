@@ -15,7 +15,7 @@ export const PASSIVE_UPGRADES = [
     desc: "Usar alergias no genera sospechas (1x por sala)",
     iconFrame: "patient_records", effect: { freeAllergyUse: true } },
   { id: "fancy_steth",    name: "Estetoscopio de lujo",  cost: 35,
-    desc: "Ves el efecto real de cada tratamiento",
+    desc: "Ves el efecto de cada fármaco sin diagnosticar",
     iconFrame: "heart_monitor_icon", effect: { showRealEffect: true } },
   { id: "rehearsed_smile", name: "Sonrisa ensayada",     cost: 30,
     desc: "Sospechas bajan el doble de rápido",

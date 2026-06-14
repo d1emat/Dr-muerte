@@ -40,7 +40,9 @@ class EndScene extends Phaser.Scene {
     const nextId = this.nextId;
     if (!nextId) { this.goMenu(); return; }
     if (shouldShowShop(this.stats.levelId)) {
-      this.fadeTo("ShopScene", { nextLevelId: nextId });
+      this.fadeTo("ShopScene", {
+        nextLevelId: nextId, levelName: this.stats.levelName,
+      });
     } else {
       this.fadeTo("NewspaperScene", {
         nextLevelId: nextId, levelName: this.stats.levelName,

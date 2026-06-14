@@ -1,5 +1,5 @@
 import { UI_W, UI_H, SUSPICION, TILE } from "../config.js";
-import { title, body, INK, PAPER, YELLOW } from "../ui/theme.js";
+import { title, body, INK, PAPER, YELLOW, GREEN } from "../ui/theme.js";
 
 export default class UIScene extends Phaser.Scene {
   constructor() { super("UIScene"); }
@@ -15,6 +15,10 @@ export default class UIScene extends Phaser.Scene {
     this.add.rectangle(36, 52, 260, 26, 0x7a6890).setOrigin(0);
     this.add.rectangle(32, 48, 260, 26, 0x4a3b5c).setOrigin(0);
     this.barFill = this.add.rectangle(36, 52, 0, 18, 0x6fd293).setOrigin(0);
+
+    // XP balance (hidden until the game emits an xp value; tutorial stays clean)
+    this.xpText = this.add.text(34, 84, "", body(24, GREEN))
+      .setStroke(INK, 5).setVisible(false);
 
     this.killText = this.add.text(UI_W - 32, 22, "Pacientes: 0/3", title(13))
       .setOrigin(1, 0).setStroke(INK, 6);
@@ -34,10 +38,10 @@ export default class UIScene extends Phaser.Scene {
       .setOrigin(0.5);
     this.minimapSize = { w: mmW, h: mmH, x: mmX, y: mmY };
 
-    this.tutBg = this.add.rectangle(UI_W / 2, 44, 760, 56, 0x4a3b5c, 0.85)
+    this.tutBg = this.add.rectangle(UI_W / 2, 44, 760, 56, 0x4a3b5c, 0.9)
       .setStrokeStyle(2, 0xfff6ee, 0.6).setVisible(false);
     this.tutText = this.add.text(UI_W / 2, 44, "", {
-      ...body(26, YELLOW), align: "center", wordWrap: { width: 720 },
+      ...body(26, YELLOW), align: "center", wordWrap: { width: 600 },
     }).setOrigin(0.5);
 
     this.promptText = this.add.text(UI_W / 2, UI_H - 118, "", body(30, YELLOW))
@@ -60,6 +64,7 @@ export default class UIScene extends Phaser.Scene {
       "level-info": (i) => this.onLevelInfo(i),
       minimap: (d) => this.onMinimap(d),
       "minimap-setup": (d) => this.onMinimapSetup(d),
+      xp: (v) => this.onXp(v),
       "ui:reset": () => this.reset(),
     };
     for (const [e, fn] of Object.entries(this._handlers)) {
@@ -85,6 +90,11 @@ export default class UIScene extends Phaser.Scene {
     this.roomText.setText("");
     this.msgText.setText("");
     this.msgBg.setVisible(false);
+    this.xpText.setVisible(false);
+  }
+
+  onXp(v) {
+    this.xpText.setText(`XP: ${v}`).setVisible(true);
   }
 
   onLevelInfo({ id, name, floor, room }) {
@@ -117,8 +127,19 @@ export default class UIScene extends Phaser.Scene {
   }
 
   onTutorial(text) {
-    this.tutText.setText(text || "");
-    this.tutBg.setVisible(!!text);
+    if (!text) {
+      this.tutBg.setVisible(false);
+      this.tutText.setText("");
+      return;
+    }
+    // size the box to the wrapped text and anchor it just below the top edge
+    this.tutText.setText(text);
+    const padX = 34, padY = 16, top = 16;
+    const w = this.tutText.width + padX * 2;
+    const h = this.tutText.height + padY * 2;
+    const cy = top + h / 2;
+    this.tutBg.setSize(w, h).setPosition(UI_W / 2, cy).setVisible(true);
+    this.tutText.setPosition(UI_W / 2, cy);
   }
 
   onSuspicion(v) {

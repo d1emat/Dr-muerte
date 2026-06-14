@@ -60,42 +60,51 @@ ROOM_LABEL = {
 }
 
 # furniture kits: list of (frame, interact_type|None). decor=cosmetic only.
+# Kits cycle to fill a room's width, so a richer/longer list = a fuller, more
+# believable room. Patient rooms keep at least one monitor (repair interactable).
 KITS = {
-    "reception": [("reception_desk", "files"), ("plant_tall", None), ("bench", None)],
-    "waiting":   [("bench", None), ("chair_down", None), ("vending_machine", None),
-                  ("plant_small", None)],
+    "reception": [("reception_desk", "files"), ("plant_tall", None), ("wheelchair", None),
+                  ("bench", None), ("chair_down", None)],
+    "waiting":   [("bench", None), ("chair_left", None), ("chair_down", None),
+                  ("chair_right", None), ("wheelchair", None), ("vending_machine", None),
+                  ("plant_small", None), ("water_dispenser", None)],
     "emergency": [("bed", None), ("heart_monitor", "monitor"), ("oxygen_machine", None),
-                  ("iv_stand", None)],
+                  ("iv_stand", None), ("wheelchair", None)],
     "icu":       [("bed", None), ("heart_monitor", "monitor"), ("oxygen_machine", None),
-                  ("bed", None)],
+                  ("bed", None), ("iv_stand", None)],
     "pharmacy":  [("medicine_shelf", None), ("cabinet", None), ("refrigerator", None),
-                  ("medicine_box", None)],
+                  ("medicine_box", None), ("medicine_shelf", None)],
     "laboratory": [("lab_machine", None), ("microscope", None), ("test_tubes", None),
-                   ("flask_set", None)],
-    "operating": [("surgery_table", None), ("surgery_lamp", None),
+                   ("flask_set", None), ("microscope", None)],
+    "operating": [("surgery_table", None), ("surgery_lamp", None), ("surgery_tools", None),
                   ("heart_monitor", "monitor"), ("iv_stand", None)],
-    "wardA":     [("bed", None), ("iv_stand", None), ("bed", None), ("plant_small", None)],
-    "wardB":     [("bed", None), ("heart_monitor", "monitor"), ("bed", None)],
+    "wardA":     [("bed", None), ("iv_stand", None), ("bed", None), ("plant_small", None),
+                  ("wheelchair", None)],
+    "wardB":     [("bed", None), ("heart_monitor", "monitor"), ("bed", None),
+                  ("plant_small", None)],
     "staff":     [("locker", None), ("coffee_machine", None), ("microwave", None),
-                  ("vending_machine", None)],
-    "cafeteria": [("table_rect", None), ("vending_machine", None),
-                  ("water_dispenser", None), ("table_round", None)],
-    "radiology": [("ct_scanner", None), ("desk", None), ("computer", None)],
-    "mri":       [("ct_scanner", None), ("lab_machine", None), ("heart_monitor", "monitor")],
+                  ("vending_machine", None), ("water_dispenser", None)],
+    "cafeteria": [("table_rect", None), ("chair_down", None), ("table_round", None),
+                  ("vending_machine", None), ("water_dispenser", None)],
+    "radiology": [("ct_scanner", None), ("desk", None), ("computer", None),
+                  ("wheelchair", None)],
+    "mri":       [("ct_scanner", None), ("lab_machine", None), ("heart_monitor", "monitor"),
+                  ("computer", None)],
     "administration": [("desk", None), ("computer", None), ("cabinet", None),
                        ("plant_tall", None)],
-    "psychiatric": [("bed", None), ("bed", None), ("plant_small", None)],
-    "maintenance": [("lab_machine", None), ("cleaning_cart", None), ("cabinet", None)],
-    "storage":   [("cabinet", None), ("medicine_box", None), ("medicine_shelf", None)],
+    "psychiatric": [("bed", None), ("bed", None), ("plant_wilted", None),
+                    ("locker", None)],
+    "maintenance": [("lab_machine", None), ("cleaning_cart", None), ("cabinet", None),
+                    ("locker", None)],
+    "storage":   [("cabinet", None), ("medicine_box", None), ("medicine_shelf", None),
+                  ("refrigerator", None)],
     "security":  [("desk", None), ("computer", None), ("locker", None),
                   ("heart_monitor", "monitor")],
-    "ward":      [("bed", None), ("iv_stand", None), ("bed", None)],
+    "ward":      [("bed", None), ("iv_stand", None), ("bed", None), ("plant_small", None)],
 }
 
 PATIENT_ROOMS = {"emergency", "icu", "operating", "wardA", "wardB",
                  "psychiatric", "ward"}
-
-ROOM_OBJECT_TYPES = ["coffee", "cable", "thermostat", "window", "pills", "syringe"]
 
 COMBO_HINT_TEXTS = [
     ("morphine_sedative", "Nota: nunca mezclar sedantes con opiáceos…"),
@@ -200,11 +209,13 @@ def make_hospital(spec):
     # build rooms + furniture + doors
     for bi, b in enumerate(bands):
         if b["kind"] == "corridor":
-            # a couple of wall signs on the corridor's top wall face
+            # wall signs + emergency lights on the corridor's top wall face
             wr = wall_rows[bi] + 1
             for k, sx in enumerate(range(4, cols - 4, max(6, (cols - 8) // 3 or 6))):
                 decor.append({"frame": SIGNS[k % len(SIGNS)], "x": sx * T,
                               "y": wr * T})
+            for sx in range(8, cols - 5, 11):
+                decor.append({"frame": "emergency_light", "x": sx * T, "y": wr * T})
             continue
 
         door_wall = adjacent_corridor_wall(bi)
@@ -420,6 +431,34 @@ SPECS = [
                {"kind": "corridor", "h": 4},                          # band 4 corr2
                rooms_band(8, ["maintenance", "storage", "security"])],  # band 5 rowD
      "elevators": [{"col": 4, "a": 1, "b": 4}]},
+    # L6 — teaching hospital, packed wings, two patrols each way
+    {"id": 6, "name": "Hospital Universitario", "subtitle": "Residentes por todas partes",
+     "patients": 6, "nurses": 2, "inspectors": 2, "difficulty": 6,
+     "cols": 84,
+     "bands": [rooms_band(8, ["reception", "waiting", "emergency", "icu", "pharmacy"]),
+               {"kind": "corridor", "h": 4},
+               rooms_band(8, ["laboratory", "operating", "wardA", "wardB", "radiology"])]},
+    # L7 — regional centre, two floors linked by elevator
+    {"id": 7, "name": "Centro Médico Regional", "subtitle": "Dos plantas, cero margen",
+     "patients": 7, "nurses": 2, "inspectors": 2, "difficulty": 7,
+     "cols": 64,
+     "bands": [rooms_band(8, ["reception", "waiting", "emergency", "icu", "pharmacy"]),
+               {"kind": "corridor", "h": 4},
+               rooms_band(8, ["operating", "wardA", "wardB", "laboratory", "staff"]),
+               rooms_band(8, ["radiology", "mri", "administration", "psychiatric"]),
+               {"kind": "corridor", "h": 4},
+               rooms_band(8, ["maintenance", "storage", "security", "cafeteria"])],
+     "elevators": [{"col": 4, "a": 1, "b": 4}]},
+    # L8 — national hospital, the final shift, BOSS: head nurse
+    {"id": 8, "name": "Hospital Nacional", "subtitle": "La última noche de guardia",
+     "patients": 8, "nurses": 2, "inspectors": 2, "difficulty": 8,
+     "boss": "triple",
+     "cols": 92,
+     "bands": [rooms_band(8, ["reception", "waiting", "emergency", "icu",
+                              "operating", "pharmacy"]),
+               {"kind": "corridor", "h": 4},
+               rooms_band(8, ["laboratory", "wardA", "wardB", "psychiatric",
+                              "radiology", "staff"])]},
 ]
 
 
@@ -445,12 +484,17 @@ def build_npc_routes(meta, n_nurse, n_insp):
     nurses, inspectors = [], []
     for i in range(n_nurse):
         c = corrs[i % len(corrs)]
-        nurses.append({"route": enrich_route([[c["x0"], c["y"]], [c["x1"], c["y"]]]),
-                       "speed": 42})
+        # NPCs sharing a corridor start from opposite ends so they don't stack
+        ends = [[c["x0"], c["y"]], [c["x1"], c["y"]]]
+        if (i // len(corrs)) % 2:
+            ends.reverse()
+        nurses.append({"route": enrich_route(ends), "speed": 42})
     for i in range(n_insp):
         c = corrs[(i + 1) % len(corrs)] if len(corrs) > 1 else corrs[0]
-        inspectors.append({"route": enrich_route([[c["x1"], c["y"]], [c["x0"], c["y"]]]),
-                           "speed": 38 + i * 4})
+        ends = [[c["x1"], c["y"]], [c["x0"], c["y"]]]
+        if (i // max(1, len(corrs))) % 2:
+            ends.reverse()
+        inspectors.append({"route": enrich_route(ends), "speed": 38 + i * 4})
     return nurses, inspectors
 
 
@@ -470,17 +514,6 @@ def build_patients(meta, count):
     # positions only — identity randomized at runtime by patients.js
     return [{"x": slot["x"], "y": slot["y"], "route": slot["route"]}
             for slot in chosen]
-
-
-def build_room_objects(meta, difficulty):
-    """Place 1-3 usable covert weapons near patient areas."""
-    objs = []
-    types = ROOM_OBJECT_TYPES[:]
-    n = min(len(meta["patient_slots"]), 1 + difficulty // 2)
-    for i, slot in enumerate(meta["patient_slots"][:n]):
-        t = types[i % len(types)]
-        objs.append({"type": t, "x": slot["x"] + 24, "y": slot["y"] - 20})
-    return objs
 
 
 def build_combo_hints(furniture, difficulty):
@@ -508,7 +541,6 @@ def main():
         nurses, inspectors = build_npc_routes(meta, spec["nurses"], spec["inspectors"])
         patients = build_patients(meta, spec["patients"])
         family, suspicious = build_observers(meta, spec["difficulty"])
-        room_objects = build_room_objects(meta, spec["difficulty"])
         combo_hints = build_combo_hints(m["furniture"], spec["difficulty"])
         if len(patients) < spec["patients"]:
             all_problems.append(
@@ -522,7 +554,7 @@ def main():
             "map": m, "spawn": meta["spawn"], "patients": patients,
             "nurses": nurses, "inspectors": inspectors,
             "family": family, "suspicious": suspicious,
-            "roomObjects": room_objects, "comboHints": combo_hints,
+            "comboHints": combo_hints,
             "elevators": meta["elevators"],
         })
 

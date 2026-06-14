@@ -11,6 +11,7 @@ export default class ShopScene extends Phaser.Scene {
 
   create(data) {
     this.nextLevelId = data.nextLevelId;
+    this.levelName = data.levelName;
     this.leaving = false;
     const rs = getRunState(this.game);
 
@@ -96,7 +97,7 @@ export default class ShopScene extends Phaser.Scene {
     if (up.uses) rs.upgrades.addActive(up);
     else rs.upgrades.addPassive(up);
     this.game.music.sfx("confirm");
-    this.scene.restart({ nextLevelId: this.nextLevelId });
+    this.scene.restart({ nextLevelId: this.nextLevelId, levelName: this.levelName });
   }
 
   continueRun() {
@@ -105,7 +106,9 @@ export default class ShopScene extends Phaser.Scene {
     this.game.music.sfx("confirm");
     this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () => {
-      this.scene.start("NewspaperScene", { nextLevelId: this.nextLevelId, fromShop: true });
+      this.scene.start("NewspaperScene", {
+        nextLevelId: this.nextLevelId, levelName: this.levelName, fromShop: true,
+      });
     });
   }
 }

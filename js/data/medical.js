@@ -199,10 +199,10 @@ export const DOSES = [
 ];
 
 export const MENU_CATEGORIES = [
+  { key: "DIAG",       label: "DIAGNÓSTICO", icon: "clipboard" },
   { key: "PILLS",      label: "PASTILLAS",   icon: "pills_bottle" },
   { key: "INJECTIONS", label: "INYECCIONES", icon: "syringe" },
   { key: "IV",         label: "VÍA IV",      icon: "iv_bag" },
-  { key: "DIAG",       label: "DIAGNÓSTICO", icon: "clipboard" },
   { key: "LEAVE",      label: "SALIR",       icon: null },
 ];
 
@@ -292,11 +292,66 @@ export function evaluateMed(patient, med, dose, priorMedCount) {
   };
 }
 
-/** Preview text for treatment menu (with luxury stethoscope upgrade). */
-export function medEffectHint(med, patient) {
-  const ev = evaluateMed(patient, med, 1.0, patient.given.size);
-  if (ev.type === "correct") return `+${ev.heal} salud`;
-  if (ev.dmg > 0) return `-${ev.dmg} salud`;
-  if (ev.type === "neutral") return "inocuo";
-  return "incierto";
+/**
+ * Like matchCombo, but for a preview: assumes `med` is about to be given,
+ * so single-med combos (e.g. potasio en cardiópata) also match.
+ */
+export function previewCombo(patient, med) {
+  for (const c of COMBOS) {
+    if (!c.meds.includes(med.id)) continue;
+    if (!c.meds.every((m) => m === med.id || patient.wasGiven(m))) continue;
+    if (c.condition && !patient.hasCondition(c.condition)) continue;
+    if (c.conditionAbsent && patient.hasCondition(c.conditionAbsent)) continue;
+    return c;
+  }
+  return null;
+}
+
+/**
+ * Full outcome preview mirroring Treatment.administer's priority
+ * (allergy → combo → evaluateMed). Returns { kind, dmg, heal, susp }.
+ */
+export function previewOutcome(patient, med, dose = 1.0) {
+  if (patient.hasAllergyToMed(med.id)) {
+    return { kind: "lethal", dmg: Math.round(50 * dose),
+             heal: 0, susp: COSTS.treatAllergy };
+  }
+  const combo = previewCombo(patient, med);
+  if (combo) {
+    const extra = Math.max(0, patient.given.size - combo.meds.length + 1);
+    const dmg = Math.round(combo.baseDmg * (1 + 0.2 * extra) * dose);
+    return { kind: "lethal", dmg, heal: 0, susp: COSTS.treatCombo };
+  }
+  const ev = evaluateMed(patient, med, dose, patient.given.size);
+  return { kind: ev.type, dmg: ev.dmg, heal: ev.heal, susp: ev.susp };
+}
+
+/**
+ * Short colored tag for the treatment menu describing what `med` would do
+ * to `patient` right now. ⚠ marks how much suspicion the choice raises.
+ */
+export function medOutcomeTag(patient, med) {
+  const o = previewOutcome(patient, med, 1.0);
+  const risk = o.susp >= 10 ? " ⚠⚠" : o.susp >= 5 ? " ⚠" : "";
+  if (o.kind === "correct") return { text: `✚ cura +${o.heal}`, color: "#6fd293" };
+  if (o.kind === "lethal")  return { text: `☠ -${o.dmg}${risk}`,  color: "#ef5d6f" };
+  if (o.dmg >= 12)          return { text: `✗ daña -${o.dmg}${risk}`, color: "#ef5d6f" };
+  if (o.dmg > 0)            return { text: `~ leve -${o.dmg}${risk}`, color: "#e0a96d" };
+  if (o.kind === "neutral") return { text: "· inocuo", color: "#a796c0" };
+  return { text: "· sin efecto", color: "#a796c0" };
+}
+
+/**
+ * Best "clean kill" medicine for a patient: most damage for the least
+ * suspicion. Used by the tutorial to point the player at what to give.
+ */
+export function recommendLethalMed(patient) {
+  let best = null, bestScore = -Infinity;
+  for (const med of MEDICINES) {
+    const o = previewOutcome(patient, med, 1.0);
+    if (o.dmg <= 0) continue;
+    const score = o.dmg - o.susp * 0.5;   // prefer damage, penalize suspicion
+    if (score > bestScore) { bestScore = score; best = med; }
+  }
+  return best ? best.id : null;
 }

@@ -1,7 +1,7 @@
 import { UI_W } from "../config.js";
 import { MEDICINES, CONDITIONS, MENU_CATEGORIES, DOSES, MED_LABEL,
-         medEffectHint } from "../data/medical.js";
-import { title, body, INK, RED, GREEN } from "../ui/theme.js";
+         medOutcomeTag } from "../data/medical.js";
+import { title, body, INK, RED, YELLOW } from "../ui/theme.js";
 
 const PANEL_W = 640, PANEL_H = 460;
 const MAX_ROWS = 6;
@@ -18,7 +18,12 @@ export default class TreatmentMenu {
     this.index = 0;
     this.built = false;
     this.rowHitAreas = [];
+    this.hintMedId = null;   // tutorial: points an arrow at the medicine to give
   }
+
+  /** Tutorial helper: show a guiding arrow toward `medId` in the menu. */
+  setHint(medId) { this.hintMedId = medId; }
+  clearHint() { this.hintMedId = null; }
 
   build() {
     const ui = this.scene.scene.get("UIScene");
@@ -47,9 +52,13 @@ export default class TreatmentMenu {
     this.selBar = ui.add.rectangle(20, 0, PANEL_W - 40, ROW_H - 6, 0xffd970, 0.45)
       .setOrigin(0);
     this.rows = [];
+    this.tags = [];
     for (let i = 0; i < MAX_ROWS; i++) {
       const row = ui.add.text(44, ROWS_Y + i * ROW_H, "", body(30, INK));
       this.rows.push(row);
+      const tag = ui.add.text(PANEL_W - 28, ROWS_Y + i * ROW_H, "", body(24, INK))
+        .setOrigin(1, 0);
+      this.tags.push(tag);
       const hit = ui.add.rectangle(20, ROWS_Y + i * ROW_H - 2,
         PANEL_W - 40, ROW_H - 4, 0xffffff, 0.001)
         .setOrigin(0).setInteractive({ useHandCursor: true });
@@ -70,9 +79,16 @@ export default class TreatmentMenu {
       "W/S elegir · E confirmar · Q atrás · ratón OK", body(22, "#7a6890"))
       .setOrigin(0.5);
 
+    // tutorial guiding arrow that points at the recommended row
+    this.hintArrow = ui.add.text(14, ROWS_Y, "▶", body(30, "#ef5d6f"))
+      .setOrigin(0.5, 0).setVisible(false);
+    ui.tweens.add({ targets: this.hintArrow, x: 22, duration: 420,
+                    yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+
     objs.push(this.shadow, this.panel, this.clip, this.title, this.symptoms,
               this.icon, this.hpLabel, this.hpShadow, this.hpBg, this.hpFill,
-              this.hpText, this.selBar, ...this.rows, this.hint);
+              this.hpText, this.selBar, ...this.rows, ...this.tags,
+              this.hintArrow, this.hint);
     this.container = ui.add.container(x, y, objs)
       .setDepth(10000).setVisible(false);
     this.built = true;
@@ -194,25 +210,56 @@ export default class TreatmentMenu {
       this.symptoms.setColor(INK);
     }
 
+    // show per-medicine effect once diagnosed (or with the fancy stethoscope)
+    const showEffect = this.mode === "med"
+      && (p.diagnosed || this.treatment.showRealEffect());
+
     this.selBar.y = ROWS_Y + this.index * ROW_H - 2;
     this.rows.forEach((row, i) => {
       const o = opts[i];
-      if (!o) { row.setText(""); return; }
+      const tag = this.tags[i];
+      if (!o) { row.setText(""); tag.setText(""); return; }
       const sel = i === this.index;
-      let label = o.label;
-      if (this.mode === "med" && o.id && o.id !== "__back"
-          && this.treatment.showRealEffect()) {
-        label += `  [${medEffectHint(
-          MEDICINES.find((m) => m.id === o.id), this.patient)}]`;
-      }
-      row.setText(`${sel ? "› " : "  "}${label}`);
+      row.setText(`${sel ? "› " : "  "}${o.label}`);
       row.setColor(sel ? RED : INK);
+
+      if (showEffect && o.id && o.id !== "__back") {
+        const t = medOutcomeTag(
+          this.patient, MEDICINES.find((m) => m.id === o.id));
+        tag.setText(t.text).setColor(t.color);
+      } else if (this.mode === "med" && o.id && o.id !== "__back") {
+        tag.setText("?").setColor("#a796c0");
+      } else {
+        tag.setText("");
+      }
     });
 
-    const cd = this.treatment.cooldownLeft();
-    this.hint.setText(cd > 0
-      ? `Haciendo efecto… ${(cd / 1000).toFixed(1)}s`
-      : "W/S elegir · E confirmar · Q atrás · ratón OK");
-    this.hint.setColor(cd > 0 ? GREEN : "#7a6890");
+    // tutorial: arrow pointing at the row that leads to the recommended medicine
+    let hintIndex = -1;
+    if (this.hintMedId) {
+      const hintMed = MEDICINES.find((m) => m.id === this.hintMedId);
+      if (this.mode === "cat" && hintMed) {
+        hintIndex = opts.findIndex((o) => o.key === hintMed.cat);
+      } else if (this.mode === "med") {
+        hintIndex = opts.findIndex((o) => o.id === this.hintMedId);
+      }
+    }
+    if (hintIndex >= 0 && hintIndex < MAX_ROWS) {
+      this.hintArrow.setVisible(true);
+      this.hintArrow.y = ROWS_Y + hintIndex * ROW_H + 2;
+    } else {
+      this.hintArrow.setVisible(false);
+    }
+
+    if (this.mode === "med" && !showEffect) {
+      this.hint.setText("Vuelve (Q) y usa DIAGNÓSTICO para ver el efecto de cada fármaco");
+      this.hint.setColor(YELLOW);
+    } else if (this.hintMedId && hintIndex >= 0) {
+      this.hint.setText("▶ El tutorial te marca qué dar. Síguelo");
+      this.hint.setColor(YELLOW);
+    } else {
+      this.hint.setText("W/S elegir · E confirmar · Q atrás · ratón OK");
+      this.hint.setColor("#7a6890");
+    }
   }
 }

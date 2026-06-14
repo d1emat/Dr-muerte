@@ -59,9 +59,9 @@ export function spendRunXp(game, amount) {
   return true;
 }
 
-/** Shop appears after completing levels 3, 6, 9… */
+/** Shop appears between every level (routeNext only reaches here with a next). */
 export function shouldShowShop(completedLevelId) {
-  return completedLevelId > 0 && completedLevelId % 3 === 0;
+  return completedLevelId > 0;
 }
 
 export function recordKill(game, patient, meta = {}) {

@@ -50,8 +50,6 @@ export const TREATMENT = {
   cooldownMs: 0,             // no wait between treatments
 };
 
-export const XP_SHOP_INTERVAL = 3;  // shop every N completed levels
-
 export const HELP_COOLDOWNS = { nurse: 14000, files: 16000 };
 
 export const MAINTENANCE = {

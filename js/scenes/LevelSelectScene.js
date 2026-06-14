@@ -33,15 +33,22 @@ export default class LevelSelectScene extends Phaser.Scene {
 
     const unlocked = highestUnlocked();
     const n = LEVELS.length;
-    const cardW = 218, gap = 22;
-    const totalW = n * cardW + (n - 1) * gap;
-    const startX = (UI_W - totalW) / 2 + cardW / 2;
-    const cy = 360;
+    // grid: up to 4 cards per row, sized to fit however many levels there are
+    const cols = Math.min(n, 4);
+    const rows = Math.ceil(n / cols);
+    const gapX = 20, gapY = 18;
+    const topY = 116, botY = UI_H - 96;
+    const cardW = Math.min(224, (UI_W - 80 - (cols - 1) * gapX) / cols);
+    const cardH = Math.min(300, (botY - topY - (rows - 1) * gapY) / rows);
+    const gridW = cols * cardW + (cols - 1) * gapX;
+    const startX = (UI_W - gridW) / 2 + cardW / 2;
+    const startY = topY + cardH / 2;
 
     this.nav = new MenuNav(this);
     LEVELS.forEach((lv, i) => {
-      const cx = startX + i * (cardW + gap);
-      this.makeCard(cx, cy, cardW, lv, lv.id <= unlocked);
+      const cx = startX + (i % cols) * (cardW + gapX);
+      const cy = startY + Math.floor(i / cols) * (cardH + gapY);
+      this.makeCard(cx, cy, cardW, cardH, lv, lv.id <= unlocked);
     });
 
     this.nav.add(makeButton(this, UI_W / 2, UI_H - 50, 280, 56, "VOLVER",
@@ -51,33 +58,35 @@ export default class LevelSelectScene extends Phaser.Scene {
     this.game.music.playMenuMusic();
   }
 
-  makeCard(cx, cy, w, lv, unlocked) {
-    const h = 320;
+  makeCard(cx, cy, w, h, lv, unlocked) {
+    const top = cy - h / 2;
     const shadow = this.add.rectangle(cx + 5, cy + 6, w, h, 0x7a6890).setOrigin(0.5);
     const card = this.add.rectangle(cx, cy, w, h,
       unlocked ? PAPER_N : 0xcfc6d9)
       .setOrigin(0.5).setStrokeStyle(3, INK_N);
 
     // level number badge
-    this.add.text(cx, cy - 116, `${lv.id}`, title(40, unlocked ? RED : "#7a6890"))
+    this.add.text(cx, top + 30, `${lv.id}`, title(30, unlocked ? RED : "#7a6890"))
       .setOrigin(0.5);
-    this.add.text(cx, cy - 64, lv.name, {
-      ...body(24, unlocked ? INK : "#7a6890"),
-      align: "center", wordWrap: { width: w - 24 },
+    this.add.text(cx, top + 68, lv.name, {
+      ...body(22, unlocked ? INK : "#7a6890"),
+      align: "center", wordWrap: { width: w - 20 },
     }).setOrigin(0.5);
 
     if (unlocked) {
-      this.add.text(cx, cy - 6, `${lv.patientCount} pacientes`,
-        body(22, INK)).setOrigin(0.5);
-      // difficulty dots
-      const dots = "●".repeat(lv.difficulty) + "○".repeat(5 - lv.difficulty);
-      this.add.text(cx, cy + 28, dots, body(22, RED)).setOrigin(0.5);
+      this.add.text(cx, top + 108, `${lv.patientCount} pacientes`,
+        body(20, INK)).setOrigin(0.5);
+      // difficulty dots (scaled to the hardest level, never negative)
+      const maxD = 8;
+      const d = Math.max(0, Math.min(maxD, lv.difficulty));
+      const dots = "●".repeat(d) + "○".repeat(maxD - d);
+      this.add.text(cx, top + 136, dots, body(16, RED)).setOrigin(0.5);
       const best = bestFor(lv.id);
-      this.add.text(cx, cy + 64,
+      this.add.text(cx, top + 162,
         best ? `Mejor: ${fmtTime(best.timeMs)}` : "Sin completar",
-        body(20, best ? GREEN : "#7a6890")).setOrigin(0.5);
+        body(18, best ? GREEN : "#7a6890")).setOrigin(0.5);
 
-      this.nav.add(makeButton(this, cx, cy + 120, w - 40, 50, "JUGAR",
+      this.nav.add(makeButton(this, cx, cy + h / 2 - 30, w - 34, 44, "JUGAR",
         () => this.play(lv.id)));
     } else {
       // drawn padlock (pixel font has no emoji)
@@ -91,7 +100,7 @@ export default class LevelSelectScene extends Phaser.Scene {
       lk.fillStyle(0xfff6ee);
       lk.fillCircle(cx, cy + 18, 5);                       // keyhole
       lk.fillRect(cx - 2, cy + 18, 4, 12);
-      this.add.text(cx, cy + 92, "Bloqueado", body(22, "#7a6890")).setOrigin(0.5);
+      this.add.text(cx, cy + h / 2 - 26, "Bloqueado", body(20, "#7a6890")).setOrigin(0.5);
       card.setInteractive({ useHandCursor: false });
       card.on("pointerdown", () => {
         this.game.music.sfx("damage");

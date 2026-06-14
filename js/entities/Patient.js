@@ -21,9 +21,6 @@ export default class Patient extends NPC {
     this.health = this.maxHealth;
     this.lastDamageAt = -Infinity;
     this.dead = false;
-    this.concealed = false;        // body covered up after death?
-    this.reported = false;         // body already spotted/discovered?
-    this.deathAt = 0;
     this._killedByCombo = false;
     this._killedByAllergy = false;
     this.immortal = def.immortal || false;
@@ -103,7 +100,6 @@ export default class Patient extends NPC {
   die(message, cause = "natural") {
     if (this.dead) return;
     this.dead = true;
-    this.deathAt = this.scene.time.now;
     this.halted = true;
     this.body.enable = false;
     this.anims.stop();
