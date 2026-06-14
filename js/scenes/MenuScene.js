@@ -143,6 +143,12 @@ export default class MenuScene extends Phaser.Scene {
     const hintsButton = makeButton(this, Rx + 300, CY + 152, 150, 46, "",
       () => this.toggleHelpHints());
 
+    const dataSection = this.add.text(Lx, CY + 138, "Datos",
+      body(24, PAPER)).setOrigin(0, 0.5);
+    const resetButton = makeButton(this, CX - 260, CY + 178, 280, 46,
+      "BORRAR PROGRESO", () => this.confirmResetProgress(resetButton));
+    this._resetButton = resetButton;
+
     const closeButton = makeButton(this, CX, CY + 222, 220, 54, "CERRAR",
       () => this.toggleSettingsPanel(false));
 
@@ -152,8 +158,9 @@ export default class MenuScene extends Phaser.Scene {
       musicVolLabel, musicSlider, musicKnob, musicValue,
       sfxVolLabel, sfxSlider, sfxKnob, sfxValue, controlsSection,
       controlsText, accessibilitySection, hintsLabel, hintsButton.shadow,
-      hintsButton.bg, hintsButton.txt, closeButton.shadow, closeButton.bg,
-      closeButton.txt]);
+      hintsButton.bg, hintsButton.txt,
+      dataSection, resetButton.shadow, resetButton.bg, resetButton.txt,
+      closeButton.shadow, closeButton.bg, closeButton.txt]);
 
     this.settingsState = {
       muteButton,
@@ -238,7 +245,13 @@ export default class MenuScene extends Phaser.Scene {
     if (visible == null) visible = !this.settingsPanel.visible;
     this.settingsPanel.setVisible(visible);
     if (this.nav) this.nav.enabled = !visible;   // suspend menu nav while modal
-    if (visible) this.updateAudioSettings();
+    if (visible) {
+      this.updateAudioSettings();
+      // re-arm the destructive reset button fresh each time the panel opens
+      this._resetArmed = false;
+      if (this._resetTimer) this._resetTimer.remove();
+      if (this._resetButton) this._resetButton.txt.setText("BORRAR PROGRESO").setColor(INK);
+    }
   }
 
   toggleMute() {
@@ -274,6 +287,32 @@ export default class MenuScene extends Phaser.Scene {
       // first run: play the origin cinematic, then the tutorial
       this.goTo("StoryScene", { chapter: "intro", next: "TutorialScene" });
     }
+  }
+
+  /** Wipe saved progress (levels, tutorial, records, journal). Two-click confirm. */
+  confirmResetProgress(btn) {
+    if (!this._resetArmed) {
+      this._resetArmed = true;
+      btn.txt.setText("¿SEGURO? OTRA VEZ").setColor(RED);
+      this.game.music.sfx("tick");
+      if (this._resetTimer) this._resetTimer.remove();
+      this._resetTimer = this.time.delayedCall(3000, () => {
+        this._resetArmed = false;
+        btn.txt.setText("BORRAR PROGRESO").setColor(INK);
+      });
+      return;
+    }
+    this._resetArmed = false;
+    if (this._resetTimer) this._resetTimer.remove();
+    for (const k of ["ft_progress", "ft_tutorial_done", "ft_arcade_best",
+                     "ft_journal"]) {
+      try { localStorage.removeItem(k); } catch (e) { /* ok */ }
+    }
+    btn.txt.setText("✓ PROGRESO BORRADO").setColor(RED);
+    this.game.music.sfx("confirm");
+    this.time.delayedCall(1800, () => {
+      btn.txt.setText("BORRAR PROGRESO").setColor(INK);
+    });
   }
 
   goTo(key, data) {

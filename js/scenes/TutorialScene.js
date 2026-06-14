@@ -44,6 +44,8 @@ export default class TutorialScene extends Phaser.Scene {
                          "nurse", TUT_NURSE_HOME, { speed: 40, pauseMs: 1800 });
     this.npcs = [this.patient, this.nurse];
 
+    this.wallColliders = wallColliders;
+    this.furnitureColliders = furnitureColliders;
     const movers = [this.player, ...this.npcs];
     this.physics.add.collider(movers, wallColliders);
     this.physics.add.collider(movers, furnitureColliders);
@@ -306,17 +308,34 @@ export default class TutorialScene extends Phaser.Scene {
   revivePatient(full) {
     // the training dummy never really dies
     const p = this.patient;
-    p.health = full ? 100 : 70;
-    p.given.clear();
     if (p.dead) {
-      // resurrect: simplest robust path is restarting the tutorial scene
+      // dead? bring in a fresh dummy instead of restarting the whole tutorial
       this.game.events.emit("message",
-        "El paciente de prácticas se 'reinicia'. Magia hospitalaria.");
-      this.scene.restart();
+        "El paciente de prácticas se desploma… traen otro a la camilla.");
+      this.time.delayedCall(700, () => this.respawnPatient(p));
       return;
     }
+    p.health = full ? 100 : 70;
+    p.given.clear();
     this.game.events.emit("message",
       "El paciente de prácticas se recupera solo. Es su trabajo.");
+  }
+
+  respawnPatient(old) {
+    if (this.finished) return;
+    if (old) {
+      const i = this.npcs.indexOf(old);
+      if (i >= 0) this.npcs.splice(i, 1);
+      old.destroy();
+    }
+    const p = new Patient(this, TUT_PATIENT);
+    this.patient = p;
+    this.npcs.push(p);
+    this.physics.add.collider(p, this.wallColliders);
+    this.physics.add.collider(p, this.furnitureColliders);
+    this.physics.add.collider(this.player, p);
+    this.floatText(p.x, p.y - 40, "nuevo paciente", "#a8d8f5");
+    this.game.music.sfx("confirm");
   }
 
   finish(skipped) {
