@@ -47,7 +47,7 @@ export const TREATMENT = {
   dischargeDmg: 25,
   drainPerCondition: 0.25,   // hp/s per untreated condition
   recentHarmWindowMs: 5000,  // death within this of a treatment = "instant death"
-  cooldownMs: 3000,          // anti-spam: one treatment every 3s
+  cooldownMs: 0,             // no wait between treatments
 };
 
 export const XP_SHOP_INTERVAL = 3;  // shop every N completed levels

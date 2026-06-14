@@ -51,8 +51,9 @@ export default class Interactions {
     }
     if (best && Phaser.Input.Keyboard.JustDown(eKey)) {
       best.action();
-      // label may change after acting (e.g. emptied cabinet)
+      // clear the prompt now; it re-emits next frame if still interactable
       this.current = null;
+      this.scene.game.events.emit("prompt", null);
     }
   }
 }

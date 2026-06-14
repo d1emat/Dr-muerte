@@ -6,8 +6,6 @@ import { getLevel, setCurrent } from "../systems/Progress.js";
 import { randomizePatient } from "../data/patients.js";
 import { getRunState, addRunXp, recordKill, recordSuspicionSample,
          resetRunState } from "../systems/RunState.js";
-import { ROOM_OBJECTS } from "../systems/RoomObjects.js";
-import { pickObjective } from "../systems/Objectives.js";
 import { COMBO_HINTS } from "../data/combo_hints.js";
 import Player from "../entities/Player.js";
 import Patient from "../entities/Patient.js";
@@ -59,15 +57,8 @@ export default class GameScene extends Phaser.Scene {
     this.runUpgrades = this.runState.upgrades;
     this.runUpgrades.enterRoom();
 
-    // per-run objective modifier (changes how this shift plays)
-    this.objective = pickObjective(this.levelId);
-    this.objectiveSuspMul = this.objective.suspMul || 1;
-    if (this.arcade) {
-      this.objective = { id: "arcade", name: "Turno infinito",
-        desc: "Elimina al máximo sin que te pillen. La presión sube sin parar." };
-      this.objectiveSuspMul = 1;
-    }
-    this.vipPatient = null;
+    // suspicion multiplier, nudged by random events (e.g. press visit)
+    this.objectiveSuspMul = 1;
 
     this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
@@ -94,13 +85,10 @@ export default class GameScene extends Phaser.Scene {
     this.player = new Player(this, this.level.spawn.x, this.level.spawn.y);
     this.patients = patientDefs.map((def) => new Patient(this, def));
 
-    // VIP objective marks one patient; archetypes mark/alter patients too
+    // archetypes can mark/alter patients
     this.patientMarks = [];
-    if (this.objective.vip && this.patients.length) {
-      this.vipPatient = Phaser.Utils.Array.GetRandom(this.patients);
-    }
     for (const p of this.patients) {
-      if (p === this.vipPatient || p.archetype.marked) {
+      if (p.archetype.marked) {
         this.addPatientMark(p, "★", "#ffd970");
       }
       if (p.archetype.sedated) { p.halted = true; p.lastDir = "down"; }
@@ -165,7 +153,6 @@ export default class GameScene extends Phaser.Scene {
     this.menu = new TreatmentMenu(this, this.treatment);
     this.interactions = new Interactions(this, this.player);
     this.registerInteractables(interactables);
-    this.registerRoomObjects();
     this.registerComboHints(interactables);
     this.registerElevators();
 
@@ -240,36 +227,18 @@ export default class GameScene extends Phaser.Scene {
       callback: () => this.reactiveDialogue(),
     });
 
-    // random complications every ~22s (skip level 1 to ease players in)
-    if (this.levelId > 1) {
-      this.eventsTimer = this.time.addEvent({
-        delay: Phaser.Math.Between(20000, 26000), loop: true,
-        callback: () => this.triggerComplication(),
-      });
-    }
-
-    // "contrarreloj" objective: a surprise audit ends the shift
-    if (this.objective.timeLimitMs) {
-      this.time.delayedCall(Math.max(0, this.objective.timeLimitMs - 30000), () => {
-        if (!this.ended) this.game.events.emit("message",
-          "La auditoría llega en 30 segundos. Date prisa.");
-      });
-      this.time.delayedCall(this.objective.timeLimitMs, () => {
-        if (this.ended) return;
-        this.game.events.emit("message",
-          "¡Llegó la auditoría y te pilla in fraganti!");
-        this.endGame("gameover", "audit");
-      });
-    }
+    // random complications: first one soon, then every ~22s
+    this.time.delayedCall(Phaser.Math.Between(8000, 12000),
+      () => this.triggerComplication());
+    this.eventsTimer = this.time.addEvent({
+      delay: Phaser.Math.Between(20000, 26000), loop: true,
+      callback: () => this.triggerComplication(),
+    });
 
     this.time.delayedCall(600, () => {
       this.game.events.emit("message",
         `${this.level.name}: ${this.patients.length} pacientes. ` +
         `${this.level.subtitle}`);
-    });
-    this.time.delayedCall(3600, () => {
-      if (!this.ended) this.game.events.emit("message",
-        `OBJETIVO — ${this.objective.name}: ${this.objective.desc}`);
     });
   }
 
@@ -383,16 +352,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  concealBody(p) {
-    if (p.concealed) return;
-    p.concealed = true;
-    this.suspicion.reduce(COSTS.checkFiles, p.x, p.y);
-    this.floatText(p.x, p.y - 30, "✓ encubierto", "#6fd293");
-    this.game.events.emit("message",
-      "Certificado firmado y cuerpo tapado. Muerte natural, oficialmente.");
-    this.game.music.sfx("confirm");
-  }
-
   updateShadows() {
     const g = this.shadowFx;
     if (!g) return;
@@ -432,22 +391,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  checkBodies(time) {
-    for (const p of this.patients) {
-      if (!p.dead || p.concealed || p.reported) continue;
-      const seen = this.stealth.anyoneSees(p.x, p.y);
-      const tooLong = time - (p.deathAt || 0) > 15000;
-      if (seen || tooLong) {
-        p.reported = true;
-        this.suspicion.add(seen ? 18 : 10, p.x, p.y);
-        this.floatText(p.x, p.y - 34, "¡cuerpo descubierto!", "#ef5d6f");
-        this.game.events.emit("message", seen
-          ? "¡Han visto el cadáver sin tapar! Sospechas disparadas."
-          : `Encuentran a ${p.displayName} sin papeleo. Empiezan las preguntas.`);
-      }
-    }
-  }
-
   handlePatientDied(p, cause) {
     if (cause === "treatment") {
       let cost = COSTS.instantDeath * (p.suspicionMul || 1);
@@ -460,11 +403,7 @@ export default class GameScene extends Phaser.Scene {
     if (this.suspicion.value < 20) bonus += 10;
     if (p._killedByCombo) bonus += 15;
     if (p._killedByAllergy) bonus += 10;
-    let xpMul = this.objective.xpMul || 1;
-    if (p === this.vipPatient) {
-      xpMul *= 3;
-      this.suspicion.add(20, p.x, p.y);     // a VIP death makes noise
-    }
+    let xpMul = 1;
     if (p.archetype.xpMul) xpMul *= p.archetype.xpMul;
     if (p.archetype.deathSuspBonus) {
       this.suspicion.add(p.archetype.deathSuspBonus, p.x, p.y);
@@ -536,10 +475,6 @@ export default class GameScene extends Phaser.Scene {
     const label = this.inspectors.includes(npc) ? "INSPECTOR" : "enfermera";
     this.game.events.emit("message",
       `¡El ${label} lo ha visto! (+${bonus})`);
-    if (this.objective.witnessInstant && !this.ended) {
-      this.game.events.emit("message", "Cero testigos era la regla. Se acabó.");
-      this.endGame("gameover", "caught");
-    }
   }
 
   reactiveDialogue() {
@@ -564,36 +499,6 @@ export default class GameScene extends Phaser.Scene {
     if (!npc) return;
     const line = Phaser.Utils.Array.GetRandom(pool);
     this.floatText(npc.x, npc.y - 36, line, "#fff6ee");
-  }
-
-  registerRoomObjects() {
-    for (const obj of this.level.roomObjects || []) {
-      const def = ROOM_OBJECTS[obj.type] || ROOM_OBJECTS[obj.id];
-      if (!def) continue;
-      const used = { done: false };
-      this.interactions.register({
-        getPos: () => ({ x: obj.x, y: obj.y }),
-        label: () => `E: ${def.label}`,
-        enabled: () => !used.done,
-        action: () => {
-          used.done = true;
-          const nearPatient = this.nearestLivingPatient(obj.x, obj.y);
-          if (!nearPatient) {
-            this.game.events.emit("message", "No hay paciente cerca para usar esto.");
-            return;
-          }
-          const dmg = def.dmg;
-          nearPatient.harm(dmg);
-          let susp = def.stealthy ? def.suspicion * 0.5 : def.suspicion;
-          this.treatment.applySuspicion(susp, obj.x, obj.y);
-          this.floatText(obj.x, obj.y - 20, `-${dmg}`, "#ef5d6f");
-          this.game.events.emit("message", def.msg);
-          this.game.music.sfx("damage");
-          if (def.drain) nearPatient.drainBonus = def.drain;
-          if (nearPatient.health <= 0) nearPatient.expire();
-        },
-      });
-    }
   }
 
   registerComboHints(interactables) {
@@ -630,13 +535,6 @@ export default class GameScene extends Phaser.Scene {
       label: () => `E: atender a ${p.displayName}`,
       enabled: () => !p.dead,
       action: () => this.menu.open(p),
-    });
-    // second act of a kill: cover the body before anyone sees it
-    this.interactions.register({
-      getPos: () => ({ x: p.x, y: p.y }),
-      label: () => "E: firmar certificado y tapar",
-      enabled: () => p.dead && !p.concealed,
-      action: () => this.concealBody(p),
     });
   }
 
@@ -709,18 +607,20 @@ export default class GameScene extends Phaser.Scene {
   }
 
   syncUI() {
+    const worldW = this.level.map.cols * TILE;
+    const worldH = this.level.map.rows * TILE;
     this.game.events.emit("kills", this.killCount, this.patients.length);
     this.game.events.emit("suspicion", this.suspicion.value);
-    this.game.events.emit("xp", this.runState.xp);
     this.game.events.emit("level-info", {
       id: this.levelId, name: this.level.name,
       floor: this.currentFloor,
       room: this.currentRoomLabel(),
     });
+    this.game.events.emit("minimap-setup", {
+      rooms: this.level.map.rooms || [], worldW, worldH,
+    });
     this.game.events.emit("minimap", {
-      playerX: this.player.x, playerY: this.player.y,
-      worldW: this.level.map.cols * TILE,
-      worldH: this.level.map.rows * TILE,
+      playerX: this.player.x, playerY: this.player.y, worldW, worldH,
     });
   }
 
@@ -883,7 +783,6 @@ export default class GameScene extends Phaser.Scene {
       if (m.p.dead) m.t.setVisible(false);
       else m.t.setPosition(m.p.x, m.p.y - 40);
     }
-    this.checkBodies(time);
 
     if (time % 500 < delta) {
       recordSuspicionSample(this.game, this.suspicion.value);

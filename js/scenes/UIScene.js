@@ -1,6 +1,5 @@
-import { UI_W, UI_H, SUSPICION } from "../config.js";
-import { title, body, INK, PAPER, YELLOW, GREEN } from "../ui/theme.js";
-import { getRunState } from "../systems/RunState.js";
+import { UI_W, UI_H, SUSPICION, TILE } from "../config.js";
+import { title, body, INK, PAPER, YELLOW } from "../ui/theme.js";
 
 export default class UIScene extends Phaser.Scene {
   constructor() { super("UIScene"); }
@@ -17,14 +16,6 @@ export default class UIScene extends Phaser.Scene {
     this.add.rectangle(32, 48, 260, 26, 0x4a3b5c).setOrigin(0);
     this.barFill = this.add.rectangle(36, 52, 0, 18, 0x6fd293).setOrigin(0);
 
-    // XP bar beneath suspicion
-    this.add.text(32, 82, "XP", title(11)).setStroke(INK, 5);
-    this.add.rectangle(36, 104, 160, 14, 0x7a6890).setOrigin(0);
-    this.add.rectangle(32, 100, 160, 14, 0x4a3b5c).setOrigin(0);
-    this.xpFill = this.add.rectangle(36, 104, 0, 10, 0xb9a8e8).setOrigin(0);
-    this.xpText = this.add.text(200, 100, "0", body(20, PAPER)).setOrigin(0, 0.5)
-      .setStroke(INK, 4);
-
     this.killText = this.add.text(UI_W - 32, 22, "Pacientes: 0/3", title(13))
       .setOrigin(1, 0).setStroke(INK, 6);
     this.levelText = this.add.text(UI_W - 32, 50, "", body(24, PAPER))
@@ -32,15 +23,16 @@ export default class UIScene extends Phaser.Scene {
     this.roomText = this.add.text(UI_W - 32, 78, "", body(22, YELLOW))
       .setOrigin(1, 0).setStroke(INK, 4);
 
-    // minimap (top-right corner)
-    const mmW = 100, mmH = 70;
-    const mmX = UI_W - 32 - mmW;
-    this.add.rectangle(mmX + 3, 118 + 3, mmW, mmH, 0x7a6890, 0.6).setOrigin(0);
-    this.minimapBg = this.add.rectangle(mmX, 118, mmW, mmH, 0x4a3b5c, 0.85)
+    // minimap (top-right) — room layout + your position
+    const mmW = 124, mmH = 80;
+    const mmX = UI_W - 32 - mmW, mmY = 112;
+    this.add.rectangle(mmX + 3, mmY + 3, mmW, mmH, 0x7a6890, 0.6).setOrigin(0);
+    this.minimapBg = this.add.rectangle(mmX, mmY, mmW, mmH, 0x4a3b5c, 0.85)
       .setOrigin(0).setStrokeStyle(1, 0xfff6ee, 0.5);
-    this.minimapDot = this.add.rectangle(mmX + mmW / 2, 118 + mmH / 2, 5, 5, 0xffd970)
+    this.minimapRooms = this.add.graphics();
+    this.minimapDot = this.add.rectangle(mmX + mmW / 2, mmY + mmH / 2, 5, 5, 0xffd970)
       .setOrigin(0.5);
-    this.minimapSize = { w: mmW, h: mmH, x: mmX, y: 118 };
+    this.minimapSize = { w: mmW, h: mmH, x: mmX, y: mmY };
 
     this.tutBg = this.add.rectangle(UI_W / 2, 44, 760, 56, 0x4a3b5c, 0.85)
       .setStrokeStyle(2, 0xfff6ee, 0.6).setVisible(false);
@@ -61,14 +53,13 @@ export default class UIScene extends Phaser.Scene {
     const ev = this.game.events;
     this._handlers = {
       suspicion: (v) => this.onSuspicion(v),
-      xp: (v) => this.onXp(v),
-      "xp-gain": (d) => this.onXpGain(d),
       prompt: (l) => this.onPrompt(l),
       message: (t) => this.onMessage(t),
       kills: (n, t) => this.onKills(n, t),
       tutorial: (t) => this.onTutorial(t),
       "level-info": (i) => this.onLevelInfo(i),
       minimap: (d) => this.onMinimap(d),
+      "minimap-setup": (d) => this.onMinimapSetup(d),
       "ui:reset": () => this.reset(),
     };
     for (const [e, fn] of Object.entries(this._handlers)) {
@@ -87,7 +78,6 @@ export default class UIScene extends Phaser.Scene {
 
   reset() {
     this.onSuspicion(0);
-    this.onXp(getRunState(this.game).xp);
     this.onKills(0, 3);
     this.onPrompt(null);
     this.onTutorial(null);
@@ -112,19 +102,18 @@ export default class UIScene extends Phaser.Scene {
     this.minimapDot.setPosition(px, py);
   }
 
-  onXp(v) {
-    const pct = Math.min(1, v / 100);
-    this.xpFill.width = Math.round(152 * pct);
-    this.xpText.setText(String(v));
-  }
-
-  onXpGain({ amount }) {
-    const t = this.add.text(200, 88, `+${amount}`, body(22, GREEN))
-      .setStroke(INK, 4);
-    this.tweens.add({
-      targets: t, y: 70, alpha: 0, duration: 900,
-      onComplete: () => t.destroy(),
-    });
+  onMinimapSetup({ rooms, worldW, worldH }) {
+    const { w, h, x, y } = this.minimapSize;
+    const g = this.minimapRooms;
+    g.clear();
+    g.fillStyle(0xc9f0dd, 0.5);
+    for (const room of rooms || []) {
+      const rx = x + (room.x * TILE / worldW) * w;
+      const ry = y + (room.y * TILE / worldH) * h;
+      const rw = Math.max(1, (room.w * TILE / worldW) * w);
+      const rh = Math.max(1, (room.h * TILE / worldH) * h);
+      g.fillRect(rx, ry, rw, rh);
+    }
   }
 
   onTutorial(text) {
