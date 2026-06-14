@@ -1,13 +1,14 @@
 import { UI_W, UI_H } from "../config.js";
 import { title, body, makeButton, INK, PAPER, RED } from "../ui/theme.js";
 import { tutorialDone, markTutorialDone } from "./TutorialScene.js";
+import MenuNav from "../ui/MenuNav.js";
 
 export default class MenuScene extends Phaser.Scene {
   constructor() { super("MenuScene"); }
 
   create() {
     this.cameras.main.setBackgroundColor("#c9f0dd");
-    this.cameras.main.fadeIn(400, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     // decorative checker floor band
     const g = this.add.graphics();
@@ -45,13 +46,14 @@ export default class MenuScene extends Phaser.Scene {
     this.add.text(UI_W / 2, 534, "M música · , . volumen",
       body(22, "#7a6890")).setOrigin(0.5);
 
+    this.nav = new MenuNav(this);
     const done = tutorialDone();
-    makeButton(this, UI_W / 2 - 220, UI_H - 84, 300, 56, "EMPEZAR TURNO",
-      () => this.startGame());
-    makeButton(this, UI_W / 2 + 96, UI_H - 84, 220, 56, "NIVELES",
-      () => this.goTo("LevelSelectScene"));
-    makeButton(this, UI_W / 2 + 320, UI_H - 84, 200, 56, "TUTORIAL",
-      () => this.goTo("TutorialScene"));
+    this.nav.add(makeButton(this, UI_W / 2 - 220, UI_H - 84, 300, 56, "EMPEZAR TURNO",
+      () => this.startGame()));
+    this.nav.add(makeButton(this, UI_W / 2 + 96, UI_H - 84, 220, 56, "NIVELES",
+      () => this.goTo("LevelSelectScene")));
+    this.nav.add(makeButton(this, UI_W / 2 + 320, UI_H - 84, 200, 56, "TUTORIAL",
+      () => this.goTo("TutorialScene")));
     const hintTxt = done
       ? "o pulsa ESPACIO"
       : "primera vez: empieza por el área de prácticas (ESPACIO)";
@@ -79,8 +81,8 @@ export default class MenuScene extends Phaser.Scene {
 
     this.showHelpHints = this.loadHelpHints();
     this.createSettingsPanel();
-    const journalBtn = makeButton(this, 160, 70, 240, 52, "CUADERNO",
-      () => this.goTo("JournalScene", { back: "MenuScene" }));
+    const journalBtn = this.nav.add(makeButton(this, 160, 70, 240, 52, "CUADERNO",
+      () => this.goTo("JournalScene", { back: "MenuScene" })));
     journalBtn.bg.setDepth(9000);
     journalBtn.txt.setDepth(9001);
     this.input.keyboard.on("keydown-J",
@@ -91,8 +93,8 @@ export default class MenuScene extends Phaser.Scene {
 
   createSettingsPanel() {
     const x = UI_W - 160;
-    const settingsBtn = makeButton(this, x, 70, 240, 52, "AJUSTES", () =>
-      this.toggleSettingsPanel(true));
+    const settingsBtn = this.nav.add(makeButton(this, x, 70, 240, 52, "AJUSTES", () =>
+      this.toggleSettingsPanel(true)));
     settingsBtn.bg.setDepth(10000);
     settingsBtn.txt.setDepth(10001);
 
@@ -246,6 +248,7 @@ export default class MenuScene extends Phaser.Scene {
   toggleSettingsPanel(visible) {
     if (visible == null) visible = !this.settingsPanel.visible;
     this.settingsPanel.setVisible(visible);
+    if (this.nav) this.nav.enabled = !visible;   // suspend menu nav while modal
     if (visible) this.updateAudioSettings();
   }
 
@@ -283,7 +286,7 @@ export default class MenuScene extends Phaser.Scene {
     if (this.startedOnce) return;
     this.startedOnce = true;
     this.game.music.sfx("confirm");
-    this.cameras.main.fadeOut(400, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () =>
       this.scene.start(key, data));
   }

@@ -3,6 +3,7 @@ import { title, body, makeButton, INK, PAPER, YELLOW, GREEN, RED }
   from "../ui/theme.js";
 import { getRunState, spendRunXp } from "../systems/RunState.js";
 import { pickUpgrades } from "../systems/Upgrades.js";
+import MenuNav from "../ui/MenuNav.js";
 
 /** Upgrade shop — shown every 3 completed levels. */
 export default class ShopScene extends Phaser.Scene {
@@ -14,7 +15,7 @@ export default class ShopScene extends Phaser.Scene {
     const rs = getRunState(this.game);
 
     this.cameras.main.setBackgroundColor("#dcc8f2");
-    this.cameras.main.fadeIn(400, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     this.add.text(UI_W / 2, 56, "TIENDA DE MEJORAS", title(28))
       .setOrigin(0.5).setStroke(INK, 8);
@@ -28,15 +29,16 @@ export default class ShopScene extends Phaser.Scene {
     const startX = (UI_W - (this.offers.length * cardW + (this.offers.length - 1) * gap)) / 2
       + cardW / 2;
 
+    this.nav = new MenuNav(this);
     this.offers.forEach((up, i) => {
       const cx = startX + i * (cardW + gap);
       this.makeOfferCard(cx, 340, up, rs);
     });
 
-    makeButton(this, UI_W / 2 - 160, UI_H - 80, 280, 56, "CONTINUAR",
-      () => this.continueRun());
-    makeButton(this, UI_W / 2 + 160, UI_H - 80, 280, 56, "SALTAR",
-      () => this.continueRun());
+    this.nav.add(makeButton(this, UI_W / 2 - 160, UI_H - 80, 280, 56, "CONTINUAR",
+      () => this.continueRun()));
+    this.nav.add(makeButton(this, UI_W / 2 + 160, UI_H - 80, 280, 56, "SALTAR",
+      () => this.continueRun()));
 
     this.add.text(UI_W / 2, UI_H - 28,
       "Compra una mejora o continúa sin comprar",
@@ -56,7 +58,11 @@ export default class ShopScene extends Phaser.Scene {
     const card = this.add.rectangle(cx, cy, 320, h, owned ? 0xcfc6d9 : PAPER)
       .setOrigin(0.5).setStrokeStyle(3, INK);
 
-    this.add.text(cx, cy - 140, up.icon || "?", title(36)).setOrigin(0.5);
+    if (up.iconFrame) {
+      this.add.image(cx, cy - 126, "items", up.iconFrame).setScale(4);
+    } else {
+      this.add.text(cx, cy - 140, "?", title(36)).setOrigin(0.5);
+    }
     this.add.text(cx, cy - 88, up.name, {
       ...body(26, INK), align: "center", wordWrap: { width: 280 },
     }).setOrigin(0.5);
@@ -70,11 +76,11 @@ export default class ShopScene extends Phaser.Scene {
       this.add.text(cx, cy + 120, "Ya adquirida", body(24, "#7a6890")).setOrigin(0.5);
     } else if (up.uses) {
       this.add.text(cx, cy + 100, `Usos: ${up.uses}`, body(20, INK)).setOrigin(0.5);
-      makeButton(this, cx, cy + 140, 240, 48, "COMPRAR",
-        () => this.buy(up));
+      this.nav.add(makeButton(this, cx, cy + 140, 240, 48, "COMPRAR",
+        () => this.buy(up)));
     } else {
-      makeButton(this, cx, cy + 130, 240, 48, "COMPRAR",
-        () => this.buy(up));
+      this.nav.add(makeButton(this, cx, cy + 130, 240, 48, "COMPRAR",
+        () => this.buy(up)));
     }
     void card;
   }
@@ -97,7 +103,7 @@ export default class ShopScene extends Phaser.Scene {
     if (this.leaving) return;
     this.leaving = true;
     this.game.music.sfx("confirm");
-    this.cameras.main.fadeOut(350, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () => {
       this.scene.start("NewspaperScene", { nextLevelId: this.nextLevelId, fromShop: true });
     });

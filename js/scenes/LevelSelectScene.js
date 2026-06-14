@@ -3,6 +3,7 @@ import { title, body, makeButton, INK, INK_N, PAPER, PAPER_N,
          YELLOW_N, RED, GREEN } from "../ui/theme.js";
 import { LEVELS } from "../data/levels.js";
 import { highestUnlocked, bestFor } from "../systems/Progress.js";
+import MenuNav from "../ui/MenuNav.js";
 
 function fmtTime(ms) {
   const s = Math.floor(ms / 1000);
@@ -14,7 +15,7 @@ export default class LevelSelectScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor("#c9f0dd");
-    this.cameras.main.fadeIn(350, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
     this.leaving = false;
 
     // decorative checker floor band
@@ -37,13 +38,14 @@ export default class LevelSelectScene extends Phaser.Scene {
     const startX = (UI_W - totalW) / 2 + cardW / 2;
     const cy = 360;
 
+    this.nav = new MenuNav(this);
     LEVELS.forEach((lv, i) => {
       const cx = startX + i * (cardW + gap);
       this.makeCard(cx, cy, cardW, lv, lv.id <= unlocked);
     });
 
-    makeButton(this, UI_W / 2, UI_H - 50, 280, 56, "VOLVER",
-      () => this.back());
+    this.nav.add(makeButton(this, UI_W / 2, UI_H - 50, 280, 56, "VOLVER",
+      () => this.back()));
     this.input.keyboard.on("keydown-ESC", () => this.back());
     this.game.music.bindKeys(this);
     this.game.music.playMenuMusic();
@@ -75,9 +77,8 @@ export default class LevelSelectScene extends Phaser.Scene {
         best ? `Mejor: ${fmtTime(best.timeMs)}` : "Sin completar",
         body(20, best ? GREEN : "#7a6890")).setOrigin(0.5);
 
-      const btn = makeButton(this, cx, cy + 120, w - 40, 50, "JUGAR",
-        () => this.play(lv.id));
-      void btn;
+      this.nav.add(makeButton(this, cx, cy + 120, w - 40, 50, "JUGAR",
+        () => this.play(lv.id)));
     } else {
       // drawn padlock (pixel font has no emoji)
       const lk = this.add.graphics();
@@ -104,7 +105,7 @@ export default class LevelSelectScene extends Phaser.Scene {
     if (this.leaving) return;
     this.leaving = true;
     this.game.music.sfx("confirm");
-    this.cameras.main.fadeOut(350, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () =>
       this.scene.start("GameScene", { levelId, freshRun: levelId === 1 }));
   }
@@ -112,7 +113,7 @@ export default class LevelSelectScene extends Phaser.Scene {
   back() {
     if (this.leaving) return;
     this.leaving = true;
-    this.cameras.main.fadeOut(300, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () =>
       this.scene.start("MenuScene"));
   }

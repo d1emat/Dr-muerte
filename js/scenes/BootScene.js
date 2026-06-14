@@ -118,7 +118,7 @@ export default class BootScene extends Phaser.Scene {
 
     // smooth transition into the menu
     this.time.delayedCall(400, () => {
-      this.cameras.main.fadeOut(400, 0x2e, 0x24, 0x38);
+      this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
       this.cameras.main.once("camerafadeoutcomplete", () =>
         this.scene.start("MenuScene"));
     });

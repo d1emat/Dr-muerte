@@ -63,7 +63,7 @@ export default class GameScene extends Phaser.Scene {
     this.objectiveSuspMul = this.objective.suspMul || 1;
     this.vipPatient = null;
 
-    this.cameras.main.fadeIn(450, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     const { wallColliders, furnitureColliders, interactables, wallsGrid,
             worldW, worldH } = buildMap(this, this.level.map);
@@ -623,7 +623,7 @@ export default class GameScene extends Phaser.Scene {
       runStats: { ...this.runState.stats },
     };
     this.scene.stop("UIScene");
-    this.cameras.main.fadeOut(450, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () => {
       if (kind === "victory") {
         this.runState.levelsCompleted++;

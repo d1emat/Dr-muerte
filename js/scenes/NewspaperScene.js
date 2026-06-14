@@ -1,6 +1,7 @@
 import { UI_W, UI_H } from "../config.js";
 import { title, body, makeButton, INK, PAPER } from "../ui/theme.js";
 import { getRunState } from "../systems/RunState.js";
+import MenuNav from "../ui/MenuNav.js";
 
 const HEADLINES = {
   clean: [
@@ -40,7 +41,7 @@ export default class NewspaperScene extends Phaser.Scene {
       || pickHeadline(rs.stats, data.levelName || "el hospital");
 
     this.cameras.main.setBackgroundColor("#f6e2c8");
-    this.cameras.main.fadeIn(400, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     // newspaper panel
     this.add.rectangle(UI_W / 2 + 6, UI_H / 2 + 8, 720, 520, 0x7a6890).setOrigin(0.5);
@@ -64,8 +65,9 @@ export default class NewspaperScene extends Phaser.Scene {
       ...body(28, INK), align: "center", wordWrap: { width: 620 }, lineSpacing: 8,
     }).setOrigin(0.5);
 
-    makeButton(this, UI_W / 2, UI_H / 2 + 200, 300, 56, "SIGUIENTE",
-      () => this.continueRun());
+    this.nav = new MenuNav(this);
+    this.nav.add(makeButton(this, UI_W / 2, UI_H / 2 + 200, 300, 56, "SIGUIENTE",
+      () => this.continueRun()));
 
     this.add.text(UI_W / 2, UI_H - 40, "ESPACIO para continuar",
       body(22, PAPER)).setOrigin(0.5).setStroke(INK, 4);
@@ -77,7 +79,7 @@ export default class NewspaperScene extends Phaser.Scene {
   continueRun() {
     if (this.leaving) return;
     this.leaving = true;
-    this.cameras.main.fadeOut(350, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () => {
       this.scene.start("GameScene", { levelId: this.nextLevelId });
     });

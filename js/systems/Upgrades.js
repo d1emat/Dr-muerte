@@ -1,39 +1,40 @@
 // Upgrade definitions and state for the shop between levels.
 
+// iconFrame: a frame in the "items" atlas (the pixel font can't draw emojis).
 export const PASSIVE_UPGRADES = [
   { id: "poker_face",     name: "Cara de buena persona", cost: 30,
     desc: "Sospechas suben 20% más lento",
-    icon: "😐", effect: { suspicionMul: 0.8 } },
+    iconFrame: "hospital_badge", effect: { suspicionMul: 0.8 } },
   { id: "shaky_hands",    name: "Manos temblorosas",     cost: 25,
     desc: "Acciones dañinas parecen accidentales (-15% sospechas por error)",
-    icon: "🤲", effect: { accidentalMul: 0.85 } },
+    iconFrame: "syringe", effect: { accidentalMul: 0.85 } },
   { id: "new_coat",       name: "Bata nueva",            cost: 20,
     desc: "Primera acción de cada sala sin sospechas",
-    icon: "🥼", effect: { freeFirstAction: true } },
+    iconFrame: "medicine_box_icon", effect: { freeFirstAction: true } },
   { id: "fake_records",   name: "Historial falso",       cost: 40,
     desc: "Usar alergias no genera sospechas (1x por sala)",
-    icon: "📋", effect: { freeAllergyUse: true } },
+    iconFrame: "patient_records", effect: { freeAllergyUse: true } },
   { id: "fancy_steth",    name: "Estetoscopio de lujo",  cost: 35,
     desc: "Ves el efecto real de cada tratamiento",
-    icon: "🩺", effect: { showRealEffect: true } },
+    iconFrame: "heart_monitor_icon", effect: { showRealEffect: true } },
   { id: "rehearsed_smile", name: "Sonrisa ensayada",     cost: 30,
     desc: "Sospechas bajan el doble de rápido",
-    icon: "😁", effect: { decayMul: 2.0 } },
+    iconFrame: "coffee_mug", effect: { decayMul: 2.0 } },
 ];
 
 export const ACTIVE_UPGRADES = [
   { id: "everyone_out",   name: "Fuera todos",    cost: 25, uses: 1,
     desc: "Echa observadores de la sala por 15 segundos",
-    icon: "🚪" },
+    iconFrame: "keycard" },
   { id: "distraction",    name: "Distracción",    cost: 20, uses: 1,
     desc: "Resetea sospechas a 0",
-    icon: "📱" },
+    iconFrame: "clipboard" },
   { id: "urgent_call",    name: "Llamada urgente", cost: 15, uses: 1,
     desc: "El inspector sale de la sala por 20 segundos",
-    icon: "📞" },
+    iconFrame: "iv_bag" },
   { id: "mystery_shot",   name: "Inyección misteriosa", cost: 35, uses: 1,
     desc: "Daño masivo al paciente más cercano, sospechas aleatorias",
-    icon: "💉" },
+    iconFrame: "chemical_bottle" },
 ];
 
 export const ALL_UPGRADES = [...PASSIVE_UPGRADES, ...ACTIVE_UPGRADES];

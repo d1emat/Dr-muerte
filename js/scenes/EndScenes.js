@@ -5,6 +5,7 @@ import { completeLevel } from "../systems/Progress.js";
 import { shouldShowShop, avgSuspicion, favoriteCombo, getRunState }
   from "../systems/RunState.js";
 import { COMBOS } from "../data/medical.js";
+import MenuNav from "../ui/MenuNav.js";
 
 function fmtTime(ms) {
   const s = Math.floor(ms / 1000);
@@ -45,7 +46,7 @@ class EndScene extends Phaser.Scene {
   fadeTo(key, data) {
     if (this.leaving) return;
     this.leaving = true;
-    this.cameras.main.fadeOut(350, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () =>
       this.scene.start(key, data));
   }
@@ -55,7 +56,7 @@ class EndScene extends Phaser.Scene {
     this.stats = stats;
     this.nextId = nextId;
     this.cameras.main.setBackgroundColor(bg);
-    this.cameras.main.fadeIn(450, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     const stars = starRating(stats);
     const starStr = "★".repeat(stars) + "☆".repeat(3 - stars);
@@ -91,15 +92,16 @@ class EndScene extends Phaser.Scene {
     this.add.text(UI_W / 2, 440, humorLine(stats, stars),
       body(22, PAPER)).setOrigin(0.5).setStroke(INK, 4).setAlpha(0.85);
 
+    const nav = new MenuNav(this);
     if (nextId) {
-      makeButton(this, UI_W / 2 - 300, 510, 250, 56, "SIGUIENTE", () => this.goNext());
-      makeButton(this, UI_W / 2, 510, 250, 56, "REINTENTAR", () => this.goRestart());
-      makeButton(this, UI_W / 2 + 300, 510, 250, 56, "MENÚ", () => this.goMenu());
+      nav.add(makeButton(this, UI_W / 2 - 300, 510, 250, 56, "SIGUIENTE", () => this.goNext()));
+      nav.add(makeButton(this, UI_W / 2, 510, 250, 56, "REINTENTAR", () => this.goRestart()));
+      nav.add(makeButton(this, UI_W / 2 + 300, 510, 250, 56, "MENÚ", () => this.goMenu()));
       this.input.keyboard.once("keydown-SPACE", () => this.goNext());
       this.input.keyboard.once("keydown-ESC", () => this.goMenu());
     } else {
-      makeButton(this, UI_W / 2 - 150, 510, 260, 56, "REINTENTAR", () => this.goRestart());
-      makeButton(this, UI_W / 2 + 150, 510, 260, 56, "MENÚ", () => this.goMenu());
+      nav.add(makeButton(this, UI_W / 2 - 150, 510, 260, 56, "REINTENTAR", () => this.goRestart()));
+      nav.add(makeButton(this, UI_W / 2 + 150, 510, 260, 56, "MENÚ", () => this.goMenu()));
       this.input.keyboard.once("keydown-SPACE", () => this.goMenu());
     }
     this.input.keyboard.once("keydown-R", () => this.goRestart());

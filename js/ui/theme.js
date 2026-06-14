@@ -27,7 +27,9 @@ export function body(size, color = INK, extra = {}) {
 }
 
 /**
- * Professional button: drop shadow, hover lift + tint, press feedback.
+ * Professional button: drop shadow, focus highlight + lift, press feedback.
+ * Shared focus state so mouse hover and keyboard navigation (MenuNav) use the
+ * same highlight. Returns { shadow, bg, txt, setFocus(), activate() }.
  */
 export function makeButton(scene, x, y, w, h, label, onClick) {
   const shadow = scene.add.rectangle(x + 4, y + 5, w, h, SHADOW_N).setOrigin(0.5);
@@ -35,25 +37,29 @@ export function makeButton(scene, x, y, w, h, label, onClick) {
     .setStrokeStyle(3, INK_N).setInteractive({ useHandCursor: true });
   const txt = scene.add.text(x, y, label, title(13, INK)).setOrigin(0.5);
 
+  const btn = { shadow, bg, txt, onClick, _nav: null, _focused: false, enabled: true };
+  const sfx = (k) => { if (scene.game.music) scene.game.music.sfx(k); };
   const lift = (on) => scene.tweens.add({
-    targets: [bg, txt], scale: on ? 1.06 : 1, duration: 110, ease: "Sine.easeOut",
+    targets: [bg, txt], scale: on ? 1.06 : 1, duration: 70, ease: "Sine.easeOut",
   });
-  bg.on("pointerover", () => {
-    bg.setFillStyle(YELLOW_N);
-    lift(true);
-    scene.game.music.sfx("tick");
-  });
-  bg.on("pointerout", () => {
-    bg.setFillStyle(PAPER_N);
-    lift(false);
-  });
-  bg.on("pointerdown", () => {
-    scene.tweens.add({ targets: [bg, txt], scale: 0.94, duration: 70 });
-  });
-  bg.on("pointerup", () => {
-    scene.game.music.sfx("confirm");
-    lift(true);
+
+  btn.setFocus = (on) => {
+    if (btn._focused === on) return;
+    btn._focused = on;
+    bg.setFillStyle(on ? YELLOW_N : PAPER_N);
+    bg.setStrokeStyle(on ? 4 : 3, INK_N);
+    lift(on);
+    if (on) sfx("tick");
+  };
+  btn.activate = () => {
+    if (!btn.enabled) return;
+    sfx("confirm");
+    scene.tweens.add({ targets: [bg, txt], scale: 0.92, duration: 45, yoyo: true });
     onClick();
-  });
-  return { shadow, bg, txt };
+  };
+
+  bg.on("pointerover", () => { if (btn._nav) btn._nav.focus(btn); else btn.setFocus(true); });
+  bg.on("pointerout", () => { if (!btn._nav) btn.setFocus(false); });
+  bg.on("pointerup", () => btn.activate());
+  return btn;
 }

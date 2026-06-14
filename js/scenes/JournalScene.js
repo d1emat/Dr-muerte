@@ -14,7 +14,7 @@ export default class JournalScene extends Phaser.Scene {
     this.scene.bringToTop();                    // render above the HUD/game
 
     this.add.rectangle(0, 0, UI_W, UI_H, 0x2e2438, 0.95).setOrigin(0);
-    this.cameras.main.fadeIn(250, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     this.add.text(UI_W / 2, 48, "CUADERNO DE COMBINACIONES", title(26, PAPER))
       .setOrigin(0.5).setStroke(INK, 8);
@@ -80,7 +80,7 @@ export default class JournalScene extends Phaser.Scene {
       }
       this.scene.stop();
     } else {
-      this.cameras.main.fadeOut(250, 0x2e, 0x24, 0x38);
+      this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
       this.cameras.main.once("camerafadeoutcomplete", () =>
         this.scene.start(this.backKey));
     }

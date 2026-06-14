@@ -30,7 +30,7 @@ export default class TutorialScene extends Phaser.Scene {
     this.finished = false;
     this.flags = { marker: false, greeted: false, treatedAt: 0, wrongAt: 0,
                    dropAt: 0, witnessAt: 0 };
-    this.cameras.main.fadeIn(450, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
 
     // ---------------- world
     const { wallColliders, furnitureColliders, interactables, wallsGrid,
@@ -251,7 +251,7 @@ export default class TutorialScene extends Phaser.Scene {
     this.game.events.emit("tutorial", null);
     if (this.menu.built) this.menu.container.destroy();
     this.game.music.sfx("confirm");
-    this.cameras.main.fadeOut(450, 0x2e, 0x24, 0x38);
+    this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () =>
       this.scene.start("GameScene"));
   }

@@ -1,6 +1,7 @@
 import { UI_W, UI_H } from "../config.js";
 import { title, body, makeButton, PAPER, INK } from "../ui/theme.js";
 import { createSettingsPanel } from "../ui/SettingsPanel.js";
+import MenuNav from "../ui/MenuNav.js";
 
 export default class PauseScene extends Phaser.Scene {
   constructor() { super("PauseScene"); }
@@ -22,14 +23,15 @@ export default class PauseScene extends Phaser.Scene {
     const btnW = 300, btnH = 52, gap = 16;
     const firstY = CY - 70;
 
-    const continueBtn = makeButton(this, CX, firstY, btnW, btnH,
-      "CONTINUAR", () => this.resumeGame());
-    const journalBtn = makeButton(this, CX, firstY + btnH + gap, btnW, btnH,
-      "CUADERNO", () => this.openJournal());
-    const settingsBtn = makeButton(this, CX, firstY + (btnH + gap) * 2, btnW, btnH,
-      "AJUSTES", () => this.settings.toggle(true));
-    const menuBtn = makeButton(this, CX, firstY + (btnH + gap) * 3, btnW, btnH,
-      "MENÚ", () => this.goToMenu());
+    this.nav = new MenuNav(this);
+    const continueBtn = this.nav.add(makeButton(this, CX, firstY, btnW, btnH,
+      "CONTINUAR", () => this.resumeGame()));
+    const journalBtn = this.nav.add(makeButton(this, CX, firstY + btnH + gap, btnW, btnH,
+      "CUADERNO", () => this.openJournal()));
+    const settingsBtn = this.nav.add(makeButton(this, CX, firstY + (btnH + gap) * 2, btnW, btnH,
+      "AJUSTES", () => { this.nav.enabled = false; this.settings.toggle(true); }));
+    const menuBtn = this.nav.add(makeButton(this, CX, firstY + (btnH + gap) * 3, btnW, btnH,
+      "MENÚ", () => this.goToMenu()));
 
     this.pausePanel.add([
       bg, titleTxt, hintTxt,
@@ -41,12 +43,14 @@ export default class PauseScene extends Phaser.Scene {
 
     this.settings = createSettingsPanel(this, {
       depth: 6000,
-      onClose: () => this.settings.toggle(false),
+      onClose: () => { this.settings.toggle(false); this.nav.enabled = true; },
     });
 
     this.input.keyboard.on("keydown-ESC", () => {
-      if (this.settings.panel.visible) this.settings.toggle(false);
-      else this.resumeGame();
+      if (this.settings.panel.visible) {
+        this.settings.toggle(false);
+        this.nav.enabled = true;
+      } else this.resumeGame();
     });
     this.input.keyboard.on("keydown-J", () => this.openJournal());
     this.input.keyboard.once("keydown-M", () => this.resumeGame());
