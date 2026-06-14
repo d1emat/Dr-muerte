@@ -27,7 +27,12 @@ function humorLine(stats, stars) {
 }
 
 class EndScene extends Phaser.Scene {
-  goRestart() { this.fadeTo("GameScene", { levelId: this.stats.levelId }); }
+  goRestart() {
+    this.fadeTo("GameScene", {
+      levelId: this.stats.levelId, arcade: this.stats.arcade,
+      freshRun: this.stats.arcade || undefined,
+    });
+  }
   goNext() { this.routeNext(); }
   goMenu() { this.fadeTo("MenuScene"); }
 
@@ -117,18 +122,29 @@ export class GameOverScene extends EndScene {
     this.game.music.playBackgroundMusic(false, 0.25);
     const caught = stats.cause === "caught";
     const avg = avgSuspicion(this.game);
-    const lines = caught
-      ? "El inspector te ha alcanzado en pleno pasillo.\nTu otra carrera también ha terminado."
-      : "Demasiadas 'casualidades' en un solo turno.\nLa funeraria ya no te devuelve las llamadas.";
-    this.show({
-      bg: "#4a3b5c",
-      titleText: "MEDICAL LICENSE REVOKED",
-      titleColor: RED,
-      lines,
-      stats: { ...stats, avgSuspicion: avg },
-      extraLines: `Partida: ${stats.runStats?.totalKills || 0} kills · ` +
-        `${stats.xp || 0} XP acumulados`,
-    });
+    if (stats.arcade) {
+      this.show({
+        bg: "#4a3b5c",
+        titleText: "FIN DEL TURNO INFINITO",
+        titleColor: YELLOW,
+        lines: `Has eliminado a ${stats.score} pacientes esta noche.\n` +
+          (stats.newRecord ? "¡NUEVO RÉCORD!" : `Tu récord: ${stats.best}`),
+        stats: { ...stats, avgSuspicion: avg },
+      });
+    } else {
+      const lines = caught
+        ? "El inspector te ha alcanzado en pleno pasillo.\nTu otra carrera también ha terminado."
+        : "Demasiadas 'casualidades' en un solo turno.\nLa funeraria ya no te devuelve las llamadas.";
+      this.show({
+        bg: "#4a3b5c",
+        titleText: "MEDICAL LICENSE REVOKED",
+        titleColor: RED,
+        lines,
+        stats: { ...stats, avgSuspicion: avg },
+        extraLines: `Partida: ${stats.runStats?.totalKills || 0} kills · ` +
+          `${stats.xp || 0} XP acumulados`,
+      });
+    }
     const insp = this.add.sprite(UI_W / 2, UI_H + 80, "inspector").setScale(7);
     insp.play("inspector_idle_down");
     this.tweens.add({ targets: insp, y: UI_H - 64, duration: 700,

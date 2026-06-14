@@ -85,6 +85,11 @@ export default class MenuScene extends Phaser.Scene {
       () => this.goTo("JournalScene", { back: "MenuScene" })));
     journalBtn.bg.setDepth(9000);
     journalBtn.txt.setDepth(9001);
+    const arcadeBtn = this.nav.add(makeButton(this, UI_W / 2, 70, 300, 52,
+      "TURNO INFINITO",
+      () => this.goTo("GameScene", { arcade: true, freshRun: true })));
+    arcadeBtn.bg.setDepth(9000);
+    arcadeBtn.txt.setDepth(9001);
     this.input.keyboard.on("keydown-J",
       () => this.goTo("JournalScene", { back: "MenuScene" }));
     this.input.keyboard.on("keydown-SPACE", () => this.startGame());

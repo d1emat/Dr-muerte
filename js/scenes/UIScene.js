@@ -169,7 +169,9 @@ export default class UIScene extends Phaser.Scene {
   }
 
   onKills(n, total) {
-    this.killText.setVisible(total > 0);
-    this.killText.setText(`Pacientes: ${n}/${total}`);
+    this.killText.setVisible(total !== 0);
+    this.killText.setText(total < 0
+      ? `Eliminados: ${n}`               // endless mode
+      : `Pacientes: ${n}/${total}`);
   }
 }

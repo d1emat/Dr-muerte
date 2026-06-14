@@ -50,9 +50,10 @@ export default class GameScene extends Phaser.Scene {
   create(data) {
     this.ended = false;
     this.startTime = this.time.now;
-    this.levelId = (data && data.levelId) || 1;
+    this.arcade = !!(data && data.arcade);          // endless mode
+    this.levelId = this.arcade ? 4 : ((data && data.levelId) || 1);
     this.level = getLevel(this.levelId);
-    setCurrent(this.levelId);
+    if (!this.arcade) setCurrent(this.levelId);
     this.runState = getRunState(this.game);
     this.runState.levelStartTime = this.time.now;
     this.runUpgrades = this.runState.upgrades;
@@ -61,6 +62,11 @@ export default class GameScene extends Phaser.Scene {
     // per-run objective modifier (changes how this shift plays)
     this.objective = pickObjective(this.levelId);
     this.objectiveSuspMul = this.objective.suspMul || 1;
+    if (this.arcade) {
+      this.objective = { id: "arcade", name: "Turno infinito",
+        desc: "Elimina al máximo sin que te pillen. La presión sube sin parar." };
+      this.objectiveSuspMul = 1;
+    }
     this.vipPatient = null;
 
     this.cameras.main.fadeIn(180, 0x2e, 0x24, 0x38);
@@ -68,6 +74,8 @@ export default class GameScene extends Phaser.Scene {
     const { wallColliders, furnitureColliders, interactables, wallsGrid,
             worldW, worldH } = buildMap(this, this.level.map);
     this.wallsGrid = wallsGrid;
+    this.wallColliders = wallColliders;
+    this.furnitureColliders = furnitureColliders;
     this.pathfinder = new Pathfinder(wallsGrid);
     this.rooms = this.level.map.rooms || [];
 
@@ -136,6 +144,13 @@ export default class GameScene extends Phaser.Scene {
     ];
     this.stealth = new Stealth(wallsGrid, observers);
     this.suspicion = new Suspicion(this, this.stealth);
+
+    // visible vision cones + ?/! alert icons over each observer
+    this.visionFx = this.add.graphics().setDepth(2);
+    this.alertIcons = this.stealth.observers.map(() =>
+      this.add.text(0, 0, "", {
+        fontFamily: FONT_BODY, fontSize: "18px", color: "#ef5d6f",
+      }).setOrigin(0.5).setDepth(8700).setStroke("#4a3b5c", 4).setVisible(false));
     this.treatment = new Treatment(this, this.suspicion);
     this.menu = new TreatmentMenu(this, this.treatment);
     this.interactions = new Interactions(this, this.player);
@@ -297,6 +312,33 @@ export default class GameScene extends Phaser.Scene {
     this.game.music.sfx("confirm");
   }
 
+  updateVision() {
+    const g = this.visionFx;
+    if (!g) return;
+    g.clear();
+    const radius = STEALTH.viewRadius * this.stealth.visionMul;
+    const half = Phaser.Math.DegToRad(STEALTH.fovDeg / 2);
+    const ANG = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+    const px = this.player.x, py = this.player.y;
+    this.stealth.observers.forEach((o, i) => {
+      const npc = o.npc;
+      const icon = this.alertIcons[i];
+      if (!npc.active || npc.dead) { if (icon) icon.setVisible(false); return; }
+      const ex = npc.x, ey = npc.y - 8;
+      const base = ANG[npc.lastDir] !== undefined ? ANG[npc.lastDir] : Math.PI / 2;
+      const sees = this.stealth.canSee(npc, px, py);
+      g.fillStyle(sees ? 0xef5d6f : 0xffd970, sees ? 0.22 : 0.10);
+      g.slice(ex, ey, radius, base - half, base + half, false);
+      g.fillPath();
+      if (!icon) return;
+      const dist = Phaser.Math.Distance.Between(ex, ey, px, py);
+      if (sees) icon.setText("!").setColor("#ef5d6f").setVisible(true);
+      else if (dist < radius) icon.setText("?").setColor("#ffd970").setVisible(true);
+      else { icon.setVisible(false); return; }
+      icon.setPosition(npc.x, npc.y - 30);
+    });
+  }
+
   checkBodies(time) {
     for (const p of this.patients) {
       if (!p.dead || p.concealed || p.reported) continue;
@@ -341,10 +383,42 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.game.music.sfx("death");
+
+    if (this.arcade) {
+      this.game.events.emit("kills", this.killCount, -1);
+      if (this.killCount % 5 === 0) {
+        this.objectiveSuspMul = Math.min(2.2, this.objectiveSuspMul + 0.15);
+        this.game.events.emit("message", "El hospital está más alerta. La presión sube.");
+      }
+      this.time.delayedCall(4000, () => {
+        if (!this.ended) this.spawnArcadePatient();
+      });
+      return;
+    }
+
     this.game.events.emit("kills", this.killCount, this.patients.length);
     if (this.killCount >= this.patients.length) {
       this.time.delayedCall(1400, () => this.endGame("victory"));
     }
+  }
+
+  spawnArcadePatient() {
+    const slots = this.level.patients || [];
+    if (!slots.length) return;
+    const free = slots.filter((s) => !this.patients.some((p) => !p.dead &&
+      Phaser.Math.Distance.Between(p.x, p.y, s.x, s.y) < 30));
+    const slot = Phaser.Utils.Array.GetRandom(free.length ? free : slots);
+    const diff = Math.min(5, 2 + Math.floor(this.killCount / 4));
+    const def = randomizePatient(
+      { x: slot.x, y: slot.y, route: slot.route }, diff);
+    const p = new Patient(this, def);
+    this.patients.push(p);
+    this.npcs.push(p);
+    this.physics.add.collider(p, this.wallColliders);
+    this.physics.add.collider(p, this.furnitureColliders);
+    this.physics.add.collider(this.player, p);
+    this.registerPatientInteractions(p);
+    this.floatText(p.x, p.y - 40, "nuevo paciente", "#a8d8f5");
   }
 
   handleWitnessed({ npc, bonus }) {
@@ -430,22 +504,24 @@ export default class GameScene extends Phaser.Scene {
     return best;
   }
 
+  registerPatientInteractions(p) {
+    this.interactions.register({
+      getPos: () => ({ x: p.x, y: p.y }),
+      label: () => `E: atender a ${p.displayName}`,
+      enabled: () => !p.dead,
+      action: () => this.menu.open(p),
+    });
+    // second act of a kill: cover the body before anyone sees it
+    this.interactions.register({
+      getPos: () => ({ x: p.x, y: p.y }),
+      label: () => "E: firmar certificado y tapar",
+      enabled: () => p.dead && !p.concealed,
+      action: () => this.concealBody(p),
+    });
+  }
+
   registerInteractables(interactables) {
-    for (const p of this.patients) {
-      this.interactions.register({
-        getPos: () => ({ x: p.x, y: p.y }),
-        label: () => `E: atender a ${p.displayName}`,
-        enabled: () => !p.dead,
-        action: () => this.menu.open(p),
-      });
-      // second act of a kill: cover the body before anyone sees it
-      this.interactions.register({
-        getPos: () => ({ x: p.x, y: p.y }),
-        label: () => "E: firmar certificado y tapar",
-        enabled: () => p.dead && !p.concealed,
-        action: () => this.concealBody(p),
-      });
-    }
+    for (const p of this.patients) this.registerPatientInteractions(p);
 
     const machines = Object.values(interactables)
       .filter((it) => it.type === "monitor");
@@ -615,13 +691,25 @@ export default class GameScene extends Phaser.Scene {
       levelId: this.levelId,
       levelName: this.level.name,
       kills: this.killCount,
-      total: this.patients.length,
+      total: this.arcade ? this.killCount : this.patients.length,
       timeMs: this.time.now - this.startTime,
       cause,
       xp: this.runState.xp,
       avgSuspicion: this.suspicion.value,
       runStats: { ...this.runState.stats },
     };
+    if (this.arcade) {
+      let best = 0;
+      try { best = parseInt(localStorage.getItem("ft_arcade_best") || "0", 10); }
+      catch (e) { best = 0; }
+      const newBest = Math.max(best, this.killCount);
+      try { localStorage.setItem("ft_arcade_best", String(newBest)); }
+      catch (e) { /* ok */ }
+      stats.arcade = true;
+      stats.score = this.killCount;
+      stats.best = newBest;
+      stats.newRecord = this.killCount >= best && this.killCount > 0;
+    }
     this.scene.stop("UIScene");
     this.cameras.main.fadeOut(180, 0x2e, 0x24, 0x38);
     this.cameras.main.once("camerafadeoutcomplete", () => {
@@ -640,6 +728,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.update(this.keys);
     for (const n of this.npcs) n.update(time, delta);
+    this.updateVision();
 
     let anyChasing = false;
     for (const insp of this.inspectors) {
