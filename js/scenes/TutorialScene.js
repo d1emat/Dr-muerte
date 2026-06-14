@@ -64,6 +64,9 @@ export default class TutorialScene extends Phaser.Scene {
     this.menu = new TreatmentMenu(this, this.treatment);
     this.interactions = new Interactions(this, this.player);
 
+    // soft contact shadows under characters
+    this.shadowFx = this.add.graphics().setDepth(1.2);
+
     // visible vision cone + ?/! icon for the nurse (teach how to read it)
     this.visionFx = this.add.graphics().setDepth(2);
     this.alertIcon = this.add.text(0, 0, "", {
@@ -243,6 +246,17 @@ export default class TutorialScene extends Phaser.Scene {
     });
   }
 
+  updateShadows() {
+    const g = this.shadowFx;
+    if (!g) return;
+    g.clear();
+    g.fillStyle(0x2e2438, 0.22);
+    for (const e of [this.player, ...this.npcs]) {
+      if (e.dead) continue;
+      g.fillEllipse(e.x, e.y - 1, 13, 5);
+    }
+  }
+
   updateVision() {
     const g = this.visionFx;
     if (!g) return;
@@ -315,6 +329,7 @@ export default class TutorialScene extends Phaser.Scene {
 
     this.player.update(this.keys);
     for (const n of this.npcs) n.update(time, delta);
+    this.updateShadows();
     this.updateVision();
 
     // nurse arrives at her observation post and stays

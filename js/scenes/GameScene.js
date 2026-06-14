@@ -145,6 +145,9 @@ export default class GameScene extends Phaser.Scene {
     this.stealth = new Stealth(wallsGrid, observers);
     this.suspicion = new Suspicion(this, this.stealth);
 
+    // soft contact shadows under every character (depth/grounding)
+    this.shadowFx = this.add.graphics().setDepth(1.2);
+
     // visible vision cones + ?/! alert icons over each observer
     this.visionFx = this.add.graphics().setDepth(2);
     this.alertIcons = this.stealth.observers.map(() =>
@@ -310,6 +313,18 @@ export default class GameScene extends Phaser.Scene {
     this.game.events.emit("message",
       "Certificado firmado y cuerpo tapado. Muerte natural, oficialmente.");
     this.game.music.sfx("confirm");
+  }
+
+  updateShadows() {
+    const g = this.shadowFx;
+    if (!g) return;
+    g.clear();
+    g.fillStyle(0x2e2438, 0.22);
+    g.fillEllipse(this.player.x, this.player.y - 1, 13, 5);
+    for (const n of this.npcs) {
+      if (n.dead) continue;
+      g.fillEllipse(n.x, n.y - 1, 13, 5);
+    }
   }
 
   updateVision() {
@@ -728,6 +743,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.player.update(this.keys);
     for (const n of this.npcs) n.update(time, delta);
+    this.updateShadows();
     this.updateVision();
 
     let anyChasing = false;

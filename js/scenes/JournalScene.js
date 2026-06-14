@@ -38,8 +38,12 @@ export default class JournalScene extends Phaser.Scene {
 
     makeButton(this, UI_W / 2, UI_H - 46, 260, 54, "VOLVER", () => this.close());
     this.input.keyboard.on("keydown-ESC", () => this.close());
-    this.input.keyboard.on("keydown-J", () => this.close());
     this.input.keyboard.on("keydown-Q", () => this.close());
+    // Delay the J-to-close binding: the same keypress that opened the journal
+    // (J, from the game) must not immediately close it again.
+    this.time.delayedCall(300, () => {
+      this.input.keyboard.on("keydown-J", () => this.close());
+    });
     this.game.music.bindKeys(this);
   }
 

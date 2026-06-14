@@ -21,6 +21,7 @@ export default class BootScene extends Phaser.Scene {
       "assets/tileset/hospital_tileset.png",
       "assets/tileset/hospital_tileset.json");
     this.load.atlas("items", "assets/items/items.png", "assets/items/items.json");
+    this.load.image("vignette", "assets/vignette.png");
     for (const s of SHEETS) {
       this.load.spritesheet(s, `assets/characters/${s}.png`,
         { frameWidth: 16, frameHeight: 24 });

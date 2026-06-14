@@ -6,6 +6,12 @@ export default class UIScene extends Phaser.Scene {
   constructor() { super("UIScene"); }
 
   create() {
+    // ambient vignette over the game (below the HUD)
+    if (this.textures.exists("vignette")) {
+      this.add.image(0, 0, "vignette").setOrigin(0).setScrollFactor(0)
+        .setDepth(-100);
+    }
+
     this.add.text(32, 22, "SOSPECHAS", title(13)).setStroke(INK, 6);
     this.add.rectangle(36, 52, 260, 26, 0x7a6890).setOrigin(0);
     this.add.rectangle(32, 48, 260, 26, 0x4a3b5c).setOrigin(0);
