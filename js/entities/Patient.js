@@ -5,7 +5,8 @@ import { CONDITIONS } from "../data/medical.js";
 export default class Patient extends NPC {
   constructor(scene, def) {
     super(scene, def.x, def.y, "patient", def.route,
-          { speed: 18, pauseMs: 2600 });
+          { speed: def.speed || 18, pauseMs: def.pauseMs || 2600 });
+    this.archetype = def.archetype || { id: "normal", lines: [] };
     this.displayName = def.displayName || def.name;
     this.conditions = [...(def.conditions || [])];
     this.allergies = def.allergies || [];

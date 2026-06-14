@@ -2,6 +2,7 @@
 // The level defines position + route; this module randomizes the identity.
 
 import { CONDITIONS, MEDICINES } from "./medical.js";
+import { pickPatientType } from "./patientTypes.js";
 
 const FIRST_NAMES = [
   "Ernesto", "Pura", "Andrés", "Remedios", "Casimiro", "Paquita",
@@ -84,6 +85,9 @@ export function randomizePatient(def, levelDifficulty = 1) {
   const baseHp = 100;
   const hp = Math.round(baseHp * bracket.resistMul);
 
+  // personality / behaviour archetype
+  const archetype = def.archetype || pickPatientType();
+
   return {
     ...def,
     name: displayName,
@@ -95,5 +99,8 @@ export function randomizePatient(def, levelDifficulty = 1) {
     maxHealth: hp,
     xpValue: bracket.xp,
     suspicionMul: bracket.suspMul,
+    archetype,
+    speed: archetype.speed || 18,
+    pauseMs: archetype.pauseMs || 2600,
   };
 }
