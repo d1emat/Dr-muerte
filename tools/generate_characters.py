@@ -24,10 +24,15 @@ BLUE   = (0xa8, 0xd8, 0xf5, 255)
 BLUE_S = (0x7d, 0xb3, 0xdd, 255)
 LAV    = (0xdc, 0xc8, 0xf2, 255)
 SKIN   = (0xff, 0xd9, 0xb8, 255)
+SKIN_S = (0xef, 0xb2, 0x8c, 255)   # light-skin shadow
 SKIN_D = (0xc6, 0x8a, 0x5c, 255)
+SKIN_DS = (0x9c, 0x68, 0x43, 255)  # dark-skin shadow
 PINK   = (0xff, 0xb3, 0xc6, 255)
+PINK_S = (0xef, 0x8a, 0xa8, 255)
 RED    = (0xef, 0x5d, 0x6f, 255)
 YELLOW = (0xff, 0xd9, 0x70, 255)
+GHOST  = (0xb9, 0xa8, 0xe8, 255)   # ghost purple (Death accents)
+LAV_S  = (0xb4, 0x9a, 0xdf, 255)
 
 FW, FH = 16, 24
 ROWS = ["idle_down", "idle_up", "idle_right", "idle_left",
@@ -72,23 +77,23 @@ def auto_outline(img):
 
 # ---------------------------------------------------------------- specs
 DOCTOR = dict(
-    name="doctor", skin=GRAY, hair=SHAD, top=WHITE, top_s=GRAY,
-    pants=OUT, shoes=OUT, eyes="sockets", cheeks=False, mouth="grin",
-    extra="coat",
+    name="doctor", skin=GRAY, skin_s=SHAD, hair=SHAD, top=WHITE, top_s=GRAY,
+    pants=OUT, shoes=OUT, eyes="sockets", cheeks=True, cheek_c=GHOST,
+    mouth="grin", extra="coat",
 )
 NURSE = dict(
-    name="nurse", skin=SKIN, hair=WOOD_S, top=BLUE_S, top_s=BLUE,
-    pants=BLUE_S, shoes=WHITE, eyes="normal", cheeks=True, mouth="smile",
-    extra="nurse",
+    name="nurse", skin=SKIN, skin_s=SKIN_S, hair=WOOD_S, top=BLUE_S, top_s=BLUE,
+    pants=BLUE_S, shoes=WHITE, eyes="normal", cheeks=True, cheek_c=PINK,
+    mouth="smile", extra="nurse",
 )
 PATIENT = dict(
-    name="patient", skin=SKIN, hair=WOOD_S, top=BLUE, top_s=BLUE_S,
-    pants=SKIN, shoes=GRAY, eyes="tired", cheeks=True, mouth="flat",
+    name="patient", skin=SKIN, skin_s=SKIN_S, hair=WOOD_S, top=BLUE, top_s=BLUE_S,
+    pants=LAV, shoes=GRAY, eyes="tired", cheeks=True, cheek_c=PINK, mouth="flat",
     extra="gown", slouch=1,
 )
 INSPECTOR = dict(
-    name="inspector", skin=SKIN_D, hair=SHAD, top=SHAD, top_s=SHAD,
-    pants=OUT, shoes=OUT, eyes="visor", cheeks=True, mouth="frown",
+    name="inspector", skin=SKIN_D, skin_s=SKIN_DS, hair=OUT, top=LAV_S, top_s=SHAD,
+    pants=SHAD, shoes=OUT, eyes="visor", cheeks=True, cheek_c=PINK, mouth="frown",
     extra="inspector",
 )
 
@@ -114,14 +119,18 @@ def face(f, s, dy, blink, facing):
     if s["eyes"] == "visor":
         if facing == "down":
             f.rect(4, ey, 8, 2, OUT)
+            f.hline(4, ey, 8, GHOST)          # glassy visor highlight
         else:
             f.rect(8, ey, 4, 2, OUT)
+            f.hline(8, ey, 4, GHOST)
     elif s["eyes"] == "tired":
         for ex in exs:
             f.rect(ex, ey + 1, 2, 1, OUT)
+            f.px(ex, ey, SHAD)                # heavy eyelid
     elif s["eyes"] == "sockets":
         for ex in exs:
             f.rect(ex, ey, 2, 2, OUT)
+            f.px(ex + 1, ey, GHOST)           # eerie glow in Death's eyes
     else:  # normal
         for ex in exs:
             if blink:
@@ -131,8 +140,9 @@ def face(f, s, dy, blink, facing):
                 f.px(ex + 1, ey, WHITE)
 
     if s["cheeks"]:
+        cc = s.get("cheek_c", PINK)
         for cx in cheek_xs:
-            f.px(cx, 10 + dy, PINK)
+            f.px(cx, 10 + dy, cc)
 
     my = 11 + dy
     if s["mouth"] == "grin":          # Death: wide fixed smile
@@ -240,8 +250,10 @@ def torso_front(f, s, dy, back=False):
     elif n == "inspector":
         f.hline(4, 18 + dy, 8, OUT)                # belt
         if not back:
-            f.px(5, 14 + dy, YELLOW)               # chest badge
-            f.vline(8, 12 + dy, 5, OUT)            # tie
+            f.rect(6, 12 + dy, 4, 2, GRAY)         # shirt collar
+            f.vline(8, 13 + dy, 5, OUT)            # tie
+            f.px(7, 14 + dy, YELLOW)               # badge
+            f.px(7, 15 + dy, YELLOW)
 
 
 def torso_right(f, s, dy):
@@ -301,8 +313,11 @@ def draw_frame(s, facing, anim, fi):
     if facing in ("down", "up"):
         legs_front(f, s, pose)
         torso_front(f, s, body_dy, back=(facing == "up"))
+        f.vline(11, 13 + body_dy, 6, s["top_s"])          # torso right-edge volume
         head_shape(f, head_dy, s["skin"])
         if facing == "down":
+            f.vline(12, 6 + head_dy, 5, s["skin_s"])      # face right-edge volume
+            f.px(11, 11 + head_dy, s["skin_s"])
             hair_down(f, s, head_dy)
             face(f, s, head_dy, blink, "down")
         else:
@@ -310,8 +325,10 @@ def draw_frame(s, facing, anim, fi):
     else:  # right (left is mirrored later)
         legs_right(f, s, pose)
         torso_right(f, s, body_dy)
+        f.vline(11, 13 + body_dy, 5, s["top_s"])          # torso shading
         f.rect(5, 3 + head_dy, 7, 10, s["skin"])
         f.rect(4, 4 + head_dy, 9, 8, s["skin"])
+        f.vline(4, 6 + head_dy, 5, s["skin_s"])           # back-of-head shadow
         hair_right(f, s, head_dy)
         face(f, s, head_dy, blink, "right")
 

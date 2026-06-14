@@ -268,7 +268,12 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   startGame() {
-    this.goTo(tutorialDone() ? "LevelSelectScene" : "TutorialScene");
+    if (tutorialDone()) {
+      this.goTo("LevelSelectScene");
+    } else {
+      // first run: play the origin cinematic, then the tutorial
+      this.goTo("StoryScene", { chapter: "intro", next: "TutorialScene" });
+    }
   }
 
   goTo(key, data) {

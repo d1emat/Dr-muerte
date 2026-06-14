@@ -7,6 +7,7 @@ import { randomizePatient } from "../data/patients.js";
 import { getRunState, addRunXp, recordKill, recordSuspicionSample,
          resetRunState } from "../systems/RunState.js";
 import { COMBO_HINTS } from "../data/combo_hints.js";
+import { CHAPTERS } from "../data/story.js";
 import Player from "../entities/Player.js";
 import Patient from "../entities/Patient.js";
 import Nurse from "../entities/Nurse.js";
@@ -222,6 +223,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.killCount = 0;
+    this.killStreak = 0;
     this.reactiveTimer = this.time.addEvent({
       delay: 12000, loop: true,
       callback: () => this.reactiveDialogue(),
@@ -403,6 +405,25 @@ export default class GameScene extends Phaser.Scene {
     if (this.suspicion.value < 20) bonus += 10;
     if (p._killedByCombo) bonus += 15;
     if (p._killedByAllergy) bonus += 10;
+
+    // discreet-kill streak: nobody saw the lethal act → reward + keep the streak;
+    // if you were spotted administering it, the streak breaks.
+    const clean = !p._seenHarm;
+    if (clean) {
+      this.killStreak = (this.killStreak || 0) + 1;
+      bonus += 6 + Math.min(this.killStreak, 6) * 4;     // escalating streak bonus
+      this.suspicion.reduce(3, p.x, p.y);                // you covered your tracks
+      this.floatText(p.x, p.y - 64,
+        this.killStreak >= 2 ? `Muerte natural ✓ x${this.killStreak}` : "Muerte natural ✓",
+        "#6fd293");
+      if (this.killStreak >= 3) this.cameras.main.flash(160, 111, 210, 147, false, null, 0.18);
+      if (this.killStreak >= 2) this.game.music.sfx("confirm");
+    } else {
+      this.killStreak = 0;
+      this.floatText(p.x, p.y - 64, "✗ te vieron actuar", "#ef5d6f");
+    }
+    this.game.events.emit("streak", this.killStreak || 0);
+
     let xpMul = 1;
     if (p.archetype.xpMul) xpMul *= p.archetype.xpMul;
     if (p.archetype.deathSuspBonus) {
@@ -613,6 +634,13 @@ export default class GameScene extends Phaser.Scene {
     this.game.events.emit("kills", this.killCount, this.patients.length);
     this.game.events.emit("suspicion", this.suspicion.value);
     this.game.events.emit("xp", this.runState.xp);
+    if (!this.arcade && !this._chapterShown) {
+      this._chapterShown = true;
+      this.game.events.emit("chapter", {
+        n: this.levelId, name: this.level.name,
+        text: CHAPTERS[this.levelId] || this.level.subtitle,
+      });
+    }
     this.game.events.emit("level-info", {
       id: this.levelId, name: this.level.name,
       floor: this.currentFloor,

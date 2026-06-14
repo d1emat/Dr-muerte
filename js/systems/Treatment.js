@@ -108,6 +108,11 @@ export default class Treatment {
     }
 
     this.applySuspicion(susp, patient.x, patient.y);
+    // remember if an observer saw this harmful act (breaks the discreet-kill streak)
+    if (dmg > 0 && this.suspicion.stealth
+        && this.suspicion.stealth.witnessesAt(patient.x, patient.y).length > 0) {
+      patient._seenHarm = true;
+    }
     if (correct) {
       this.suspicion.reduce(COSTS.correctTreatment, patient.x, patient.y);
     }

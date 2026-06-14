@@ -158,10 +158,20 @@ export class GameOverScene extends EndScene {
 export class VictoryScene extends EndScene {
   constructor() { super("VictoryScene"); }
 
+  // beating the final campaign level routes the player to the closing cinematic
+  goMenu() {
+    if (this._fullWin) {
+      this.fadeTo("StoryScene", { chapter: "finale", next: "MenuScene" });
+    } else {
+      super.goMenu();
+    }
+  }
+
   create(stats) {
     this.game.music.stopMusic();
     this.game.music.playBackgroundMusic(false, 0.25);
     const nextId = completeLevel(stats.levelId, stats);
+    this._fullWin = !nextId && !stats.arcade;
     const lines = nextId
       ? `All patients have been successfully 'treated'.\n` +
         `Has superado ${stats.levelName}.\n` +

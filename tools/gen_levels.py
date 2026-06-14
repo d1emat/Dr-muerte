@@ -106,6 +106,16 @@ KITS = {
 PATIENT_ROOMS = {"emergency", "icu", "operating", "wardA", "wardB",
                  "psychiatric", "ward"}
 
+# Relative footprint per room type, so a floor reads like a real hospital:
+# big treatment bays / waiting halls, medium support rooms, tiny service closets.
+ROOM_SIZE = {
+    "waiting": 3, "emergency": 3, "cafeteria": 3, "wardA": 3, "wardB": 3,
+    "reception": 3, "icu": 3, "operating": 3, "ward": 3, "psychiatric": 3,
+    "laboratory": 2, "radiology": 2, "mri": 2, "administration": 2,
+    "pharmacy": 2, "staff": 2,
+    "maintenance": 1, "storage": 1, "security": 1,
+}
+
 COMBO_HINT_TEXTS = [
     ("morphine_sedative", "Nota: nunca mezclar sedantes con opiáceos…"),
     ("potassium_weak_heart", "Potasio IV + cardiopatía = paro. Lo vimos el mes pasado."),
@@ -142,15 +152,36 @@ def make_hospital(spec):
     corridors, patient_slots, elevator_pads = [], [], []
     ids = {"monitor": 0, "files": 0}
 
-    # split a rooms band into rooms across interior cols 1..cols-2
+    # split a rooms band into rooms across interior cols 1..cols-2, sizing each
+    # room by its type weight so the floor has realistic big/small rooms.
     def split_rooms(band):
-        n = len(band["rooms"])
+        rooms = band["rooms"]
+        n = len(rooms)
         interior = cols - 2
-        total = interior - (n - 1)            # tiles for rooms (minus dividers)
-        base, rem = divmod(total, n)
+        avail = interior - (n - 1)            # tiles for rooms (minus dividers)
+        minw, maxw = 5, 22                    # door fits; no half-floor mega-rooms
+        weights = [ROOM_SIZE.get(r["type"], 2) for r in rooms]
+        wsum = sum(weights) or n
+        widths = [min(maxw, max(minw, avail * w // wsum)) for w in weights]
+        # reconcile rounding so the widths sum to exactly `avail`
+        rem = avail - sum(widths)
+        guard = 0
+        while rem != 0 and guard < 4000:
+            guard += 1
+            if rem > 0:                       # grow a room under the cap (biggest first)
+                cand = [j for j in range(n) if widths[j] < maxw] or list(range(n))
+                j = max(cand, key=lambda k: weights[k])
+                widths[j] += 1
+                rem -= 1
+            else:                             # trim the widest room above the min
+                cand = [j for j in range(n) if widths[j] > minw]
+                if not cand:
+                    break
+                widths[max(cand, key=lambda j: widths[j])] -= 1
+                rem += 1
         result, x = [], 1
-        for i, room in enumerate(band["rooms"]):
-            w = base + (1 if i < rem else 0)
+        for i, room in enumerate(rooms):
+            w = widths[i]
             result.append((room, x, w))
             x += w
             if i < n - 1:

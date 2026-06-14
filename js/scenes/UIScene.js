@@ -19,6 +19,9 @@ export default class UIScene extends Phaser.Scene {
     // XP balance (hidden until the game emits an xp value; tutorial stays clean)
     this.xpText = this.add.text(34, 84, "", body(24, GREEN))
       .setStroke(INK, 5).setVisible(false);
+    // discreet-kill streak
+    this.streakText = this.add.text(34, 114, "", body(24, YELLOW))
+      .setStroke(INK, 5).setVisible(false);
 
     this.killText = this.add.text(UI_W - 32, 22, "Pacientes: 0/3", title(13))
       .setOrigin(1, 0).setStroke(INK, 6);
@@ -54,6 +57,17 @@ export default class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.msgTimer = null;
 
+    // animated chapter card (story beat shown at the start of each level)
+    this.chapterCard = this.add.container(UI_W / 2, 188).setDepth(60).setVisible(false);
+    const ccBg = this.add.rectangle(0, 0, 960, 132, 0x2e2438, 0.92)
+      .setStrokeStyle(2, 0xffd970, 0.7).setOrigin(0.5);
+    this.chapTitle = this.add.text(0, -38, "", title(22, YELLOW))
+      .setOrigin(0.5).setStroke(INK, 6);
+    this.chapBody = this.add.text(0, 18, "", {
+      ...body(28, PAPER), align: "center", wordWrap: { width: 900 }, lineSpacing: 6,
+    }).setOrigin(0.5);
+    this.chapterCard.add([ccBg, this.chapTitle, this.chapBody]);
+
     const ev = this.game.events;
     this._handlers = {
       suspicion: (v) => this.onSuspicion(v),
@@ -65,6 +79,8 @@ export default class UIScene extends Phaser.Scene {
       minimap: (d) => this.onMinimap(d),
       "minimap-setup": (d) => this.onMinimapSetup(d),
       xp: (v) => this.onXp(v),
+      streak: (v) => this.onStreak(v),
+      chapter: (d) => this.onChapter(d),
       "ui:reset": () => this.reset(),
     };
     for (const [e, fn] of Object.entries(this._handlers)) {
@@ -91,10 +107,35 @@ export default class UIScene extends Phaser.Scene {
     this.msgText.setText("");
     this.msgBg.setVisible(false);
     this.xpText.setVisible(false);
+    this.streakText.setVisible(false);
+    if (this.chapterCard) this.chapterCard.setVisible(false);
   }
 
   onXp(v) {
     this.xpText.setText(`XP: ${v}`).setVisible(true);
+  }
+
+  onStreak(v) {
+    if (v >= 2) {
+      this.streakText.setText(`Racha discreta ×${v}`).setVisible(true).setScale(1.25);
+      this.tweens.add({ targets: this.streakText, scale: 1, duration: 220,
+                        ease: "Back.easeOut" });
+    } else {
+      this.streakText.setVisible(false);
+    }
+  }
+
+  onChapter({ n, name, text }) {
+    const c = this.chapterCard;
+    this.chapTitle.setText(`CAPÍTULO ${n} · ${String(name || "").toUpperCase()}`);
+    this.chapBody.setText(text || "");
+    this.tweens.killTweensOf(c);
+    c.setVisible(true).setAlpha(0).setScale(0.96);
+    c.y = 168;
+    this.tweens.add({ targets: c, alpha: 1, scale: 1, y: 188,
+                      duration: 380, ease: "Back.easeOut" });
+    this.tweens.add({ targets: c, alpha: 0, duration: 420, delay: 4200,
+                      onComplete: () => c.setVisible(false) });
   }
 
   onLevelInfo({ id, name, floor, room }) {

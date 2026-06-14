@@ -10,6 +10,7 @@ import UIScene from "./scenes/UIScene.js";
 import { GameOverScene, VictoryScene } from "./scenes/EndScenes.js";
 import ShopScene from "./scenes/ShopScene.js";
 import NewspaperScene from "./scenes/NewspaperScene.js";
+import StoryScene from "./scenes/StoryScene.js";
 
 let started = false;
 function start() {
@@ -35,7 +36,7 @@ function start() {
     },
     scene: [BootScene, MenuScene, LevelSelectScene, TutorialScene, GameScene,
             PauseScene, JournalScene, UIScene, ShopScene, NewspaperScene,
-            GameOverScene, VictoryScene],
+            StoryScene, GameOverScene, VictoryScene],
   });
 }
 
