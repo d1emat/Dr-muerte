@@ -20,57 +20,56 @@ export default class MenuScene extends Phaser.Scene {
       }
     }
 
-    const titleTxt = this.add.text(UI_W / 2, 110, "FATAL TREATMENT", title(46))
+    // title
+    const titleTxt = this.add.text(UI_W / 2, 82, "FATAL TREATMENT", title(46))
       .setOrigin(0.5).setStroke(INK, 10).setScale(0);
-    this.tweens.add({ targets: titleTxt, scale: 1, duration: 500,
+    this.tweens.add({ targets: titleTxt, scale: 1, duration: 420,
                       ease: "Back.easeOut" });
-    this.add.text(UI_W / 2, 170,
+    this.add.text(UI_W / 2, 134,
       "Dr. Muerte — turno de noche en el Hospital Pastelito",
-      body(30)).setOrigin(0.5);
+      body(28)).setOrigin(0.5);
 
-    // the doctor, looking perfectly trustworthy
-    const doc = this.add.sprite(UI_W / 2, 350, "doctor").setScale(10);
+    // doctor mascot on the right, looking perfectly trustworthy
+    const doc = this.add.sprite(1015, 430, "doctor").setScale(11);
     doc.play("doctor_idle_down");
-    const soul = this.add.image(UI_W / 2 + 110, 290, "soul").setScale(7);
+    const soul = this.add.image(1095, 350, "soul").setScale(7);
     this.tweens.add({
-      targets: soul, y: 250, alpha: 0.4,
+      targets: soul, y: 312, alpha: 0.4,
       duration: 1400, yoyo: true, repeat: -1, ease: "Sine.easeInOut",
     });
-
-    this.add.text(UI_W / 2, 470,
-      "WASD mover · E atender · W/S elegir · Q cerrar",
-      body(28)).setOrigin(0.5);
-    this.add.text(UI_W / 2, 504,
-      "Trata a 3 pacientes… hasta el final. Que nadie sospeche.",
-      body(28, RED)).setOrigin(0.5);
-    this.add.text(UI_W / 2, 534, "M música · , . volumen",
+    this.add.text(1015, 568, "«Qué doctor tan majo.»",
       body(22, "#7a6890")).setOrigin(0.5);
 
+    // single clean button column (keyboard-navigable)
     this.nav = new MenuNav(this);
     const done = tutorialDone();
-    this.nav.add(makeButton(this, UI_W / 2 - 220, UI_H - 84, 300, 56, "EMPEZAR TURNO",
+    const colX = 430, colW = 380, step = 66;
+    let by = 232;
+    this.nav.add(makeButton(this, colX, by, colW, 60, "EMPEZAR TURNO",
       () => this.startGame()));
-    this.nav.add(makeButton(this, UI_W / 2 + 96, UI_H - 84, 220, 56, "NIVELES",
+    by += step + 4;
+    this.nav.add(makeButton(this, colX, by, colW, 54, "SELECCIONAR NIVEL",
       () => this.goTo("LevelSelectScene")));
-    this.nav.add(makeButton(this, UI_W / 2 + 320, UI_H - 84, 200, 56, "TUTORIAL",
+    by += step;
+    this.nav.add(makeButton(this, colX, by, colW, 54, "TURNO INFINITO",
+      () => this.goTo("GameScene", { arcade: true, freshRun: true })));
+    by += step;
+    this.nav.add(makeButton(this, colX, by, colW, 54, "TUTORIAL",
       () => this.goTo("TutorialScene")));
-    const hintTxt = done
-      ? "o pulsa ESPACIO"
-      : "primera vez: empieza por el área de prácticas (ESPACIO)";
-    const hint = this.add.text(UI_W / 2, UI_H - 36, hintTxt,
-      body(22, INK)).setOrigin(0.5);
-    this.tweens.add({ targets: hint, alpha: 0.35, duration: 600,
-                      yoyo: true, repeat: -1 });
+    by += step;
+    this.nav.add(makeButton(this, colX, by, colW, 54, "CUADERNO",
+      () => this.goTo("JournalScene", { back: "MenuScene" })));
+    by += step;
+    this.nav.add(makeButton(this, colX, by, colW, 54, "AJUSTES",
+      () => this.toggleSettingsPanel(true)));
+
+    // bottom hint
+    this.add.text(UI_W / 2, UI_H - 50,
+      "↑↓ moverse · ENTER elegir · ESPACIO empezar · M música",
+      body(24, INK)).setOrigin(0.5);
     if (!done) {
-      const skip = this.add.text(UI_W - 24, UI_H - 24,
-        "saltar tutorial ›", body(22, "#7a6890"))
-        .setOrigin(1).setInteractive({ useHandCursor: true });
-      skip.on("pointerover", () => skip.setColor(INK));
-      skip.on("pointerout", () => skip.setColor("#7a6890"));
-      skip.on("pointerdown", () => {
-        markTutorialDone();
-        this.goTo("LevelSelectScene");
-      });
+      this.add.text(UI_W / 2, UI_H - 22,
+        "¿primera vez? prueba el TUTORIAL", body(20, RED)).setOrigin(0.5);
     }
 
     this.game.music.bindKeys(this);
@@ -81,15 +80,6 @@ export default class MenuScene extends Phaser.Scene {
 
     this.showHelpHints = this.loadHelpHints();
     this.createSettingsPanel();
-    const journalBtn = this.nav.add(makeButton(this, 160, 70, 240, 52, "CUADERNO",
-      () => this.goTo("JournalScene", { back: "MenuScene" })));
-    journalBtn.bg.setDepth(9000);
-    journalBtn.txt.setDepth(9001);
-    const arcadeBtn = this.nav.add(makeButton(this, UI_W / 2, 70, 300, 52,
-      "TURNO INFINITO",
-      () => this.goTo("GameScene", { arcade: true, freshRun: true })));
-    arcadeBtn.bg.setDepth(9000);
-    arcadeBtn.txt.setDepth(9001);
     this.input.keyboard.on("keydown-J",
       () => this.goTo("JournalScene", { back: "MenuScene" }));
     this.input.keyboard.on("keydown-SPACE", () => this.startGame());
@@ -97,12 +87,6 @@ export default class MenuScene extends Phaser.Scene {
   }
 
   createSettingsPanel() {
-    const x = UI_W - 160;
-    const settingsBtn = this.nav.add(makeButton(this, x, 70, 240, 52, "AJUSTES", () =>
-      this.toggleSettingsPanel(true)));
-    settingsBtn.bg.setDepth(10000);
-    settingsBtn.txt.setDepth(10001);
-
     this.settingsPanel = this.add.container(0, 0).setVisible(false).setDepth(10000);
     const CX = UI_W / 2, CY = UI_H / 2;
     const frame = this.add.rectangle(CX, CY, 940, 548, 0x4a3b5c, 0.96)

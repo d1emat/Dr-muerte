@@ -1,4 +1,4 @@
-import { WORLD_ZOOM, COSTS } from "../config.js";
+import { WORLD_ZOOM, COSTS, STEALTH } from "../config.js";
 import { FONT_BODY } from "../ui/theme.js";
 import { buildMap } from "../world/MapBuilder.js";
 import { TUTORIAL_MAP, TUT_SPAWN, TUT_PATIENT, TUT_NURSE_HOME,
@@ -63,6 +63,12 @@ export default class TutorialScene extends Phaser.Scene {
     this.treatment = new Treatment(this, this.suspicion);
     this.menu = new TreatmentMenu(this, this.treatment);
     this.interactions = new Interactions(this, this.player);
+
+    // visible vision cone + ?/! icon for the nurse (teach how to read it)
+    this.visionFx = this.add.graphics().setDepth(2);
+    this.alertIcon = this.add.text(0, 0, "", {
+      fontFamily: FONT_BODY, fontSize: "18px", color: "#ef5d6f",
+    }).setOrigin(0.5).setDepth(8700).setStroke("#4a3b5c", 4).setVisible(false);
 
     const monitor = interactables.tut_monitor;
     this.maintenance = new Maintenance(this, this.suspicion, [monitor],
@@ -138,38 +144,54 @@ export default class TutorialScene extends Phaser.Scene {
     const playerNear = (x, y, d) => () =>
       Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y) < d;
     return [
-      { text: "Bienvenido al área de prácticas, doctor", ms: 2600 },
-      { text: "Muévete con WASD hasta la marca amarilla del pasillo",
+      { text: "Bienvenido al área de prácticas. Los pacientes son maniquíes… " +
+        "en el turno real, no tanto.", ms: 3400 },
+      { text: "Muévete con WASD hasta la marca amarilla. Estira esos huesos. " +
+        "Metafóricamente.",
         guide: TUT_MARKER, ring: true,
         done: playerNear(TUT_MARKER.x, TUT_MARKER.y, 16) },
-      { text: "Habla con la enfermera: acércate y pulsa E (sala central)",
+      { text: "Saluda a la enfermera (E). Una sonrisa abre puertas… y baja " +
+        "sospechas.",
         guide: () => this.nurse,
         done: () => this.flags.greeted },
-      { text: "Atiende al paciente: pulsa E y aplica un tratamiento",
+      { text: "Acércate al paciente (E) → DIAGNÓSTICO. Saber qué tiene es saber " +
+        "cómo 'ayudarle'.",
+        guide: () => this.patient,
+        done: () => this.patient.diagnosed },
+      { text: "Ahora trátalo: categoría → medicina → DOSIS. La dosis alta cura " +
+        "más… o lo contrario.",
         guide: () => this.patient,
         done: () => this.flags.treatedAt > this.stepStart },
-      { text: "Ahora prueba una medicina EQUIVOCADA (p. ej. Potasio, VÍA IV)",
+      { text: "Prueba a posta una medicina que NO le toca. Mira su salud caer. " +
+        "Es de mentira, tranquilo.",
         guide: () => this.patient,
         done: () => this.flags.wrongAt > this.stepStart },
-      { text: "Cada error daña al paciente y suma SOSPECHAS (barra superior)",
-        ms: 4200 },
-      { text: "¡Avería! Repara la máquina de la sala derecha: baja sospechas",
+      { text: "Cada chapuza baja su salud y SUBE tu sospecha (barra de arriba). " +
+        "Ese es el arte.", ms: 4200 },
+      { text: "Mezclar fármacos puede ser letal. Cada combinación que descubras " +
+        "se anota sola en tu cuaderno (J).", ms: 4400 },
+      { text: "¡Avería! Repárala (E): el doctor servicial baja sospechas. Nadie " +
+        "duda del que ayuda.",
         guide: () => ({ x: this.monitorRef.x, y: this.monitorRef.y }),
         enter: () => this.maintenance.breakNow("tut_monitor"),
         done: () => this.flags.dropAt > this.stepStart },
-      { text: "La enfermera viene a observar. Haz un tratamiento erróneo DELANTE de ella",
+      { text: "Ese CONO amarillo es lo que ve la enfermera. Si te pilla, se " +
+        "pone rojo. Apréndetelo bien.", ms: 4600 },
+      { text: "Haz algo turbio DELANTE de ella para que te vea (+sospecha). " +
+        "Las paredes la ciegan: úsalas.",
         guide: () => this.patient,
         enter: () => {
           this.nurse.route = TUT_NURSE_WATCH_ROUTE.slice();
           this.nurse.wpIndex = 0;
           this.nurse.pausedUntil = 0;
           this.nurse.halted = false;
+          this._watchStep = true;
         },
         done: () => this.flags.witnessAt > this.stepStart },
-      { text: "Si te ven: +20. El inspector real: +40. Las paredes bloquean su visión",
-        ms: 4600 },
-      { text: "Misión: trata 'con cariño' a 3 pacientes. Que no te pillen. Suerte",
-        ms: 4200 },
+      { text: "En el turno real, tras 'tratar' a alguien, TAPA el cuerpo antes " +
+        "de que lo vean. Aquí no hace falta.", ms: 4600 },
+      { text: "Eso es todo. Tres pacientes por turno, que parezca natural, y la " +
+        "Muerte estará orgullosa. Suerte, doctor.", ms: 4600 },
     ];
   }
 
@@ -209,6 +231,28 @@ export default class TutorialScene extends Phaser.Scene {
       enabled: () => this.maintenance.isBroken(monitor.id),
       action: () => this.maintenance.repair(monitor),
     });
+  }
+
+  updateVision() {
+    const g = this.visionFx;
+    if (!g) return;
+    g.clear();
+    const n = this.nurse;
+    if (!n.active || n.dead) { this.alertIcon.setVisible(false); return; }
+    const radius = STEALTH.viewRadius * this.stealth.visionMul;
+    const half = Phaser.Math.DegToRad(STEALTH.fovDeg / 2);
+    const ANG = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+    const ex = n.x, ey = n.y - 8;
+    const base = ANG[n.lastDir] !== undefined ? ANG[n.lastDir] : Math.PI / 2;
+    const sees = this.stealth.canSee(n, this.player.x, this.player.y);
+    g.fillStyle(sees ? 0xef5d6f : 0xffd970, sees ? 0.22 : 0.10);
+    g.slice(ex, ey, radius, base - half, base + half, false);
+    g.fillPath();
+    const dist = Phaser.Math.Distance.Between(ex, ey, this.player.x, this.player.y);
+    if (sees) this.alertIcon.setText("!").setColor("#ef5d6f").setVisible(true);
+    else if (dist < radius) this.alertIcon.setText("?").setColor("#ffd970").setVisible(true);
+    else { this.alertIcon.setVisible(false); return; }
+    this.alertIcon.setPosition(n.x, n.y - 30);
   }
 
   syncUI() {
@@ -261,9 +305,10 @@ export default class TutorialScene extends Phaser.Scene {
 
     this.player.update(this.keys);
     for (const n of this.npcs) n.update(time, delta);
+    this.updateVision();
 
     // nurse arrives at her observation post and stays
-    if (this.stepIdx === 7 && !this.nurse.halted &&
+    if (this._watchStep && !this.nurse.halted &&
         Phaser.Math.Distance.Between(this.nurse.x, this.nurse.y,
           TUT_NURSE_WATCH_POS.x, TUT_NURSE_WATCH_POS.y) < 8) {
       this.nurse.halted = true;
