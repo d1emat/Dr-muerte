@@ -21,12 +21,12 @@ export default class MenuScene extends Phaser.Scene {
     }
 
     // title
-    const titleTxt = this.add.text(UI_W / 2, 82, "FATAL TREATMENT", title(46))
+    const titleTxt = this.add.text(UI_W / 2, 82, "DR. MUERTE", title(54))
       .setOrigin(0.5).setStroke(INK, 10).setScale(0);
     this.tweens.add({ targets: titleTxt, scale: 1, duration: 420,
                       ease: "Back.easeOut" });
-    this.add.text(UI_W / 2, 134,
-      "Dr. Muerte — turno de noche en el Hospital Pastelito",
+    this.add.text(UI_W / 2, 138,
+      "Turno de noche en el Hospital Pastelito",
       body(28)).setOrigin(0.5);
 
     // doctor mascot on the right, looking perfectly trustworthy

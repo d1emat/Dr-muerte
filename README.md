@@ -1,4 +1,4 @@
-# Fatal Treatment · Dr. Muerte
+# Dr. Muerte
 
 > Eres la **Muerte disfrazada de doctor** en un hospital pastel. Tu trabajo:
 > "tratar" a los pacientes… hasta el final, sin que nadie sospeche.

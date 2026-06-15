@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Hospital level generator for FATAL TREATMENT.
+Hospital level generator for DR. MUERTE.
 
 Builds 5 levels of increasing size using a single-corridor-per-floor model
 (rooms above and below each corridor, every room doored into it, so the floor

@@ -46,11 +46,11 @@ export default class BootScene extends Phaser.Scene {
     g.fillStyle(0xef5d6f).fillRect(UI_W / 2 - 24, 72, 48, 128);
     g.fillStyle(0xef5d6f).fillRect(UI_W / 2 - 64, 112, 128, 48);
 
-    this.add.text(UI_W / 2 + 4, 294, "FATAL TREATMENT", title(44, "#4a3b5c"))
+    this.add.text(UI_W / 2 + 4, 294, "DR. MUERTE", title(52, "#4a3b5c"))
       .setOrigin(0.5);
-    this.add.text(UI_W / 2, 290, "FATAL TREATMENT", title(44))
+    this.add.text(UI_W / 2, 290, "DR. MUERTE", title(52))
       .setOrigin(0.5).setStroke(INK, 10);
-    this.add.text(UI_W / 2, 348, "Dr. Muerte — turno de noche", body(30))
+    this.add.text(UI_W / 2, 348, "Turno de noche", body(30))
       .setOrigin(0.5);
 
     // loading bar (shadow + frame + fill)
